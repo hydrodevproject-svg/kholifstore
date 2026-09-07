@@ -10,6 +10,7 @@
   overflow: hidden;
 }
 
+/* ================= TATA LETAK KHUSUS HP (MODE MOBILE) ================= */
 body.mode-mobile .pos-workspace {
   flex-direction: column;
 }
@@ -62,14 +63,16 @@ body.mode-mobile .order-panel.mobile-open {
   transform: translate3d(0, 0, 0);
 }
 
+/* ================= TATA LETAK KOMPUTER & TABLET (LAYAR LEBAR) ================= */
 body.mode-tablet .pos-workspace {
   flex-direction: row;
 }
 
 body.mode-tablet .cat-sidebar {
-  width: 180px;
+  width: 190px;
   background-color: var(--surface) !important;
   border-right: 1px solid var(--border-light);
+  border-bottom: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -100,22 +103,30 @@ body.mode-tablet .products-section {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+  height: 100%;
 }
 
 body.mode-tablet .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
 }
 
+/* Kunci utama: Memasang panel pembayaran secara permanen di sisi kanan */
 body.mode-tablet .order-panel {
-  width: 360px;
+  position: static !important;
+  transform: none !important;
+  inset: auto !important;
+  width: 380px !important;
+  max-width: 380px !important;
+  min-width: 350px !important;
   background-color: var(--surface) !important;
-  border-left: 1px solid var(--border-light);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  height: 100%;
+  border-left: 1px solid var(--border-light) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-shrink: 0 !important;
+  height: 100% !important;
+  z-index: 10 !important;
 }
 
 body.mode-tablet .btn-close-cart-mobile,
@@ -123,6 +134,79 @@ body.mode-tablet .mobile-cart-fab {
   display: none !important;
 }
 
+/* ================= RESPONSIF OTOMATIS LAYAR LEBAR (MIN-WIDTH: 1024PX) ================= */
+@media (min-width: 1024px) {
+  .pos-workspace {
+    flex-direction: row !important;
+  }
+
+  .cat-sidebar {
+    width: 190px !important;
+    background-color: var(--surface) !important;
+    border-right: 1px solid var(--border-light) !important;
+    border-bottom: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 14px 10px !important;
+    overflow-y: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  .cat-pill {
+    width: 100% !important;
+    text-align: left !important;
+    padding: 10px 14px !important;
+    background: #f8fafc !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer !important;
+  }
+
+  .cat-pill.active {
+    background: var(--brand-primary) !important;
+    color: #ffffff !important;
+  }
+
+  .products-section {
+    flex: 1 !important;
+    padding: 16px !important;
+    overflow-y: auto !important;
+    height: 100% !important;
+  }
+
+  .products-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .order-panel {
+    position: static !important;
+    transform: none !important;
+    inset: auto !important;
+    width: 380px !important;
+    max-width: 380px !important;
+    min-width: 350px !important;
+    background-color: var(--surface) !important;
+    border-left: 1px solid var(--border-light) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    height: 100% !important;
+    z-index: 10 !important;
+  }
+
+  .btn-close-cart-mobile,
+  .mobile-cart-fab {
+    display: none !important;
+  }
+}
+
+/* ================= GAYA ITEM PRODUK & KERANJANG ================= */
 .products-section {
   flex: 1;
   overflow-y: auto;
