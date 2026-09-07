@@ -2,7 +2,7 @@
 .login-overlay {
   position: fixed;
   inset: 0;
-  background: #f8fafc !important;
+  background: #f8fafc !important; /* Solid 100% agar tidak tembus pandang atau memicu garis atas */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,7 +17,7 @@
 
 .login-wrapper {
   width: 100%;
-  max-width: 320px; /* Lebih ramping dari 390px agar tidak melebar di HP */
+  max-width: 320px; /* Ramping agar proporsional di layar HP */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +33,7 @@
 }
 
 .login-logo-outside .brand-img-large {
-  height: 90px !important; /* Dikecilkan dari 160px agar pas dengan proporsi HP */
+  height: 90px !important; /* Disesuaikan agar pas di layar Android */
   max-height: 90px !important;
   width: auto !important;
   max-width: 190px !important;
@@ -132,6 +132,10 @@
 .field-info-banner span {
   font-size: 9.5px;
   color: var(--text-secondary);
+}
+
+.field-info-banner strong {
+  color: var(--text-primary);
 }
 
 .btn-toggle-password {
@@ -242,7 +246,7 @@
   font-weight: 600;
 }
 
-/* ================= MODAL STANDAR ================= */
+/* ================= MODAL DIALOG STANDAR ================= */
 .modal-wrapper {
   position: fixed;
   inset: 0;
@@ -386,6 +390,12 @@
   outline: none;
   background-color: #f8fafc !important;
   color: var(--text-primary);
+}
+
+.input-readonly-hint {
+  background-color: #f1f5f9 !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed;
 }
 
 .discount-quick-pills {
@@ -719,6 +729,241 @@
 .receipt-action-buttons {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+/* ================= MASTER IT & PENGATURAN ================= */
+.profile-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.profile-detail-grid small {
+  display: block;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.profile-detail-grid strong {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.settings-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background-color: #f8fafc !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: var(--radius-sm);
+}
+
+.toggle-info strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toggle-info span {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.user-grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
+  gap: 6px;
+  background-color: #f8fafc !important;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.user-grid-form input,
+.user-grid-form select {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-size: 11.5px;
+  background-color: var(--surface) !important;
+  color: var(--text-primary);
+}
+
+.user-grid-form button {
+  background-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: 4px;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.it-form-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.it-form-row input {
+  flex: 1;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-size: 11.5px;
+  background-color: var(--surface) !important;
+}
+
+.it-form-row button {
+  background-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  padding: 0 12px;
+  border-radius: 4px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feature-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.feature-module-card {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.module-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.module-title-box strong {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.module-title-box small {
+  display: block;
+  font-family: monospace;
+  font-size: 9.5px;
+  color: var(--text-secondary);
+}
+
+.module-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background-color: #f8fafc !important;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.control-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.control-item span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.threads-switch-sm {
+  width: 32px;
+  height: 18px;
+}
+
+.threads-switch-sm .threads-slider:before {
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+}
+
+.threads-switch-sm input:checked + .threads-slider:before {
+  transform: translateX(14px);
+}
+
+.btn-eliminate-module {
+  background: transparent;
+  color: var(--brand-danger);
+  border: 1px solid #fecaca;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.database-card-action {
+  background-color: #f8fafc !important;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.database-card-action.danger-zone {
+  background-color: #fef2f2 !important;
+  border-color: #fecaca;
+}
+
+.db-action-info strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+}
+
+.db-action-info span {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.btn-danger-action {
+  height: 38px;
+  background-color: var(--brand-danger) !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
