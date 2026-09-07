@@ -364,6 +364,7 @@ function initSettingsModule() {
 
   initMasterItModule();
 
+  // Pencadangan Transaksi JSON
   const btnBackup = document.getElementById("btnBackupTransactions");
   if (btnBackup) {
     btnBackup.onclick = async () => {
@@ -389,6 +390,7 @@ function initSettingsModule() {
     };
   }
 
+  // Import Data Persediaan (Excel, CSV, JSON)
   const btnTriggerImport = document.getElementById("btnTriggerImportInventory");
   const fileInputImport = document.getElementById("inputImportInventoryFile");
   const btnTemplate = document.getElementById("btnDownloadTemplateImport");
@@ -410,6 +412,7 @@ function initSettingsModule() {
     btnTemplate.onclick = () => downloadInventoryCsvTemplate();
   }
 
+  // Pengosongan Transaksi
   const btnClear = document.getElementById("btnClearAllTransactions");
   if (btnClear) {
     btnClear.onclick = async () => {
@@ -981,10 +984,10 @@ function renderItFeaturesCards() {
         </div>
       </div>
     `;
-    container.appendChild(card);
+    itFeatureCardsList.appendChild(card);
   });
 
-  container.querySelectorAll(".it-toggle-enable").forEach((sw) => {
+  itFeatureCardsList.querySelectorAll(".it-toggle-enable").forEach((sw) => {
     sw.onchange = () => {
       const id = sw.getAttribute("data-id");
       state.featuresConfig[id].enabled = sw.checked;
@@ -994,7 +997,7 @@ function renderItFeaturesCards() {
     };
   });
 
-  container.querySelectorAll(".it-toggle-role").forEach((sw) => {
+  itFeatureCardsList.querySelectorAll(".it-toggle-role").forEach((sw) => {
     sw.onchange = () => {
       const id = sw.getAttribute("data-id");
       const role = sw.getAttribute("data-role");
@@ -1009,7 +1012,7 @@ function renderItFeaturesCards() {
     };
   });
 
-  container.querySelectorAll(".btn-eliminate-module").forEach((btn) => {
+  itFeatureCardsList.querySelectorAll(".btn-eliminate-module").forEach((btn) => {
     btn.onclick = async () => {
       const id = btn.getAttribute("data-id");
       const ok = await showThemedConfirm("Eliminasi Modul", `Eliminasi fitur "${state.featuresConfig[id].name}"?`);
