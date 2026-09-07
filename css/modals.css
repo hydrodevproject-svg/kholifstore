@@ -2,8 +2,7 @@
 .login-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(248, 250, 252, 0.96) !important;
-  backdrop-filter: blur(8px);
+  background: #f8fafc !important; /* Warna solid murni agar tidak tembus pandang atau memicu garis atas */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -531,7 +530,7 @@
   border-color: var(--brand-primary);
 }
 
-/* ================= DAFTAR PILIHAN FULL-WIDTH (GAMBAR 2) ================= */
+/* ================= DAFTAR PILIHAN FULL-WIDTH ================= */
 .full-width-picker-list {
   width: 100% !important;
   display: flex;
@@ -592,7 +591,7 @@
   background: var(--brand-primary);
 }
 
-/* ================= ITEM KARTU BARANG DALAM FAKTUR (GAMBAR 1) ================= */
+/* ================= ITEM KARTU BARANG DALAM FAKTUR ================= */
 .purch-item-card {
   background: var(--surface);
   border: 1px solid var(--border-light);
@@ -1231,6 +1230,10 @@
 }
 
 #purchItemDetailModal {
+  z-index: 3600 !important;
+}
+
+#paperWidthModal {
   z-index: 3600 !important;
 }
 
