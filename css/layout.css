@@ -1,0 +1,367 @@
+/* ================= HEADER, SHELL UTAMA & DRAWER ================= */
+.pos-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+}
+
+.pos-header {
+  background-color: var(--surface) !important;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  gap: 12px;
+  height: 64px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.brand-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  transition: transform 0.12s var(--spring);
+  flex-shrink: 0;
+}
+
+.brand-trigger-btn:active {
+  transform: scale(0.96);
+}
+
+.header-logo-img {
+  height: 40px !important;
+  max-height: 40px !important;
+  width: auto !important;
+  max-width: 110px !important;
+  object-fit: contain;
+}
+
+.brand-details {
+  text-align: left;
+}
+
+.brand-details h1 {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+.brand-details span {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.header-current-title {
+  display: none;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 440px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.search-box input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  background: #f1f5f9;
+  padding: 0 100px 0 38px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-box input:focus {
+  background: var(--surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05);
+}
+
+.scanner-ready-badge {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.scanner-ready-badge .mono-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--brand-success);
+}
+
+.header-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.role-pill {
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.live-clock {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Penutup Latar Belakang & Menu Samping */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(4px);
+  z-index: 2900;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s var(--spring), visibility 0.28s;
+  cursor: pointer;
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 290px;
+  max-width: 82vw;
+  background-color: var(--surface) !important;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(-100%, 0, 0);
+  transition: transform 0.28s var(--spring);
+  border-right: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg);
+}
+
+.app-drawer.open {
+  transform: translate3d(0, 0, 0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-logo {
+  height: 36px !important;
+  max-height: 36px !important;
+  width: auto !important;
+  max-width: 90px !important;
+  object-fit: contain;
+}
+
+.drawer-brand h3 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.drawer-brand span {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.drawer-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.drawer-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.drawer-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+.drawer-user-text strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.drawer-menu-list {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.nav-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.nav-menu-item:active {
+  transform: scale(0.97);
+}
+
+.nav-menu-item.active {
+  background: var(--brand-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.drawer-footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.btn-drawer-logout {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f1f5f9;
+  color: var(--brand-danger);
+  border: 1px solid #fee2e2;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Wadah Utama Viewport & Perbaikan Scroll */
+.main-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+}
+
+#viewContainer {
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-view {
+  display: none;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-view.active {
+  display: block;
+}
+
+.pos-footer {
+  height: 28px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pos-footer .dot {
+  color: var(--text-tertiary);
+}

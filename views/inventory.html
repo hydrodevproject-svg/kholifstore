@@ -1,0 +1,317 @@
+<!-- VIEW: PERSEDIAAN & STOK OPNAME -->
+<section id="view-inventory" class="app-view">
+  <div class="threads-container">
+    
+    <!-- HUB SUB-MENU PERSEDIAAN -->
+    <div id="invMenuView">
+      <div class="view-action-header">
+        <div>
+          <h2>Persediaan &amp; Kontrol Mutu</h2>
+          <p>Katalog barang, audit stok opname, dan deteksi barang kadaluwarsa.</p>
+        </div>
+      </div>
+
+      <div class="settings-sub-grid">
+        <div class="settings-menu-card" data-sub="invSubCatalog">
+          <div class="sub-card-icon-box" style="color: var(--brand-accent);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Katalog Stok</strong>
+          <span class="sub-card-desc">Daftar item, harga jual, dan stok gudang</span>
+          <span class="badge-mono" style="margin-top: 8px;" id="badgeInvCatalogCount">0 Item</span>
+        </div>
+
+        <div class="settings-menu-card" data-sub="invSubExpired">
+          <div class="sub-card-icon-box" style="color: #d97706;">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Monitoring Expired</strong>
+          <span class="sub-card-desc">Peringatan kadaluwarsa batch bahan kue</span>
+          <span class="badge-mono" style="margin-top: 8px;" id="badgeInvExpiredCount">0 Waspada</span>
+        </div>
+
+        <div class="settings-menu-card" data-sub="invSubOpnames">
+          <div class="sub-card-icon-box" style="color: var(--brand-success);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Riwayat Opname</strong>
+          <span class="sub-card-desc">Log penyesuaian fisik vs sistem kasir</span>
+          <span class="badge-mono" style="margin-top: 8px;" id="badgeInvOpnamesCount">0 Log</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL SUB-MENU PERSEDIAAN -->
+    <div id="invDetailView" class="hidden">
+      <div class="settings-detail-nav">
+        <button class="btn-back-screen" id="btnBackInvSubMenu" type="button">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Kembali</span>
+        </button>
+        <h3 id="invSubTitle">Detail Persediaan</h3>
+      </div>
+
+      <!-- PANEL 1: KATALOG STOK (DENGAN TOMBOL BARANG BARU & PAGINASI) -->
+      <div class="sub-detail-panel hidden" id="panelInvSubCatalog">
+        <div class="threads-card">
+          <div class="table-filter-bar">
+            <input type="text" id="invCatalogSearch" placeholder="Cari barcode atau nama barang..." />
+            <button type="button" class="btn-threads-primary" id="btnOpenAddProductPage" style="white-space: nowrap;">
+              + Barang Baru
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Barcode</th>
+                  <th>Nama Barang</th>
+                  <th>Kategori</th>
+                  <th>HPP</th>
+                  <th>Harga Jual</th>
+                  <th>Stok</th>
+                  <th style="text-align: right;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryCatalogTableBody"></tbody>
+            </table>
+          </div>
+          <!-- Wadah Paginasi 20 Data -->
+          <div id="invCatalogPagination"></div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: MONITORING KADALUWARSA -->
+      <div class="sub-detail-panel hidden" id="panelInvSubExpired">
+        <div class="threads-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Barang</th>
+                  <th>Nota Masuk</th>
+                  <th>Jumlah</th>
+                  <th>Tgl Kadaluwarsa</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryExpiredTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3: RIWAYAT OPNAME (DENGAN TOMBOL STOK OPNAME) -->
+      <div class="sub-detail-panel hidden" id="panelInvSubOpnames">
+        <div class="threads-card">
+          <div class="section-badge-title" style="margin-bottom: 14px;">
+            <div>
+              <h3 class="card-section-title" style="margin-bottom: 2px;">Log Penyesuaian Fisik</h3>
+              <span style="font-size: 11.5px; color: var(--text-secondary);">Catatan audit selisih persediaan fisik vs sistem.</span>
+            </div>
+            <button type="button" class="btn-threads-primary" id="btnOpenStockOpnameModal" style="white-space: nowrap;">
+              + Stok Opname
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Nama Barang</th>
+                  <th>Stok Sistem</th>
+                  <th>Stok Fisik</th>
+                  <th>Selisih</th>
+                  <th>Keterangan</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryOpnamesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FULL-PAGE SCREEN: FORM DATA BARANG -->
+<div class="full-page-screen" id="productPageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackProductPage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Kembali</span>
+    </button>
+    <h3 id="productPageTitle">Tambah Barang Baru</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <form id="productPageForm" class="page-form-container" onsubmit="return false;">
+      
+      <!-- KODE BARCODE -->
+      <div class="input-field-group">
+        <label for="prodFormBarcode">Kode Barcode / EAN</label>
+        <div class="input-icon-wrap">
+          <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"></path>
+          </svg>
+          <input type="text" id="prodFormBarcode" placeholder="Scan barcode atau ketik nomor..." autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- NAMA BARANG -->
+      <div class="input-field-group">
+        <label for="prodFormName">Nama Barang</label>
+        <div class="input-icon-wrap">
+          <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <input type="text" id="prodFormName" placeholder="Contoh: Tepung Terigu 1kg" required autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- KATEGORI BARANG -->
+      <div class="input-field-group">
+        <label>Kategori Produk</label>
+        <div class="custom-picker-row" id="btnOpenCategoryPage">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--brand-accent);">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span id="prodFormCatDisplay" style="font-weight: 700; color: var(--text-primary);">Bahan Kue</span>
+          </div>
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          <input type="hidden" id="prodFormCategory" value="Bahan Kue" />
+        </div>
+      </div>
+
+      <!-- HARGA HPP & HARGA JUAL -->
+      <div class="form-group-row">
+        <div class="input-field-group">
+          <label for="prodFormCostPrice">Modal Pokok (HPP Satuan)</label>
+          <div class="input-icon-wrap">
+            <span class="currency-prefix-tag">Rp</span>
+            <input type="number" id="prodFormCostPrice" class="input-with-currency" placeholder="0" min="0" required />
+          </div>
+        </div>
+        <div class="input-field-group">
+          <label for="prodFormSellPrice">Harga Jual Toko</label>
+          <div class="input-icon-wrap">
+            <span class="currency-prefix-tag">Rp</span>
+            <input type="number" id="prodFormSellPrice" class="input-with-currency" placeholder="0" min="0" required />
+          </div>
+        </div>
+      </div>
+
+      <!-- STOK AWAL & CATATAN PERINGATAN -->
+      <div class="input-field-group">
+        <label for="prodFormInitialStock">Jumlah Stok Tersedia (Pcs)</label>
+        <div class="input-icon-wrap">
+          <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <input type="number" id="prodFormInitialStock" placeholder="0" min="0" required />
+        </div>
+        <div class="field-info-banner">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--brand-accent); width: 15px; height: 15px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Stok hanya dapat diedit secara manual saat pembuatan awal. Selanjutnya penyesuaian stok dilakukan melalui modul <strong>Stok Opname</strong> atau <strong>Pembelian Barang</strong>.</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-threads-primary block" style="margin-top: 14px; height: 48px;">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        <span>Simpan Data Barang</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- FULL-PAGE SCREEN: PILIH KATEGORI -->
+<div class="full-page-screen" id="categoryPageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackCategoryPage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Data Barang</span>
+    </button>
+    <h3>Pilih Kategori</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <div class="category-options-list" id="categoryOptionsList"></div>
+
+    <div class="add-category-box">
+      <div class="box-title">
+        <strong>+ Buat Kategori Baru</strong>
+      </div>
+      <div class="inline-add-cat-row">
+        <input type="text" id="inNewCategoryName" placeholder="Ketik nama kategori baru..." />
+        <button type="button" id="btnAddCategoryInline">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STOK OPNAME -->
+<div class="modal-wrapper" id="stockOpnameModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Penyesuaian Stok Opname</h3>
+      <button class="close-btn" id="btnCloseStockOpnameModal">&times;</button>
+    </div>
+    <form id="stockOpnameForm" class="modal-form-vertical" onsubmit="return false;">
+      <div class="form-group">
+        <label for="opnameProductSelect">Pilih Barang</label>
+        <select id="opnameProductSelect"></select>
+      </div>
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="opnameSystemStock">Stok Sistem</label>
+          <input type="text" id="opnameSystemStock" readonly class="input-readonly-hint" />
+        </div>
+        <div class="form-group">
+          <label for="opnamePhysicalStock">Stok Fisik Nyata</label>
+          <input type="number" id="opnamePhysicalStock" placeholder="0" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="opnameNote">Keterangan / Alasan Selisih</label>
+        <input type="text" id="opnameNote" placeholder="Cth: Barang rusak, salah hitung" />
+      </div>
+      <button type="submit" class="btn-threads-primary block" style="margin-top: 8px;">
+        Simpan Hasil Opname
+      </button>
+    </form>
+  </div>
+</div>

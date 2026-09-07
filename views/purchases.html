@@ -1,0 +1,314 @@
+<!-- VIEW: PEMBELIAN & HUTANG DAGANG -->
+<section id="view-purchases" class="app-view">
+  <div class="threads-container">
+    <div class="view-action-header">
+      <div>
+        <h2>Pembelian &amp; Hutang Dagang</h2>
+        <p>Input faktur belanja supplier, penyesuaian HPP/harga jual, dan jatuh tempo hutang tempo.</p>
+      </div>
+      <button class="btn-threads-primary" id="btnOpenAddPurchaseModal">+ Pembelian Baru</button>
+    </div>
+
+    <div class="it-tabs-nav">
+      <button class="it-tab-btn active" data-purchase-tab="tabPurchaseHistory">Faktur Pembelian</button>
+      <button class="it-tab-btn" data-purchase-tab="tabSupplierDebt">Hutang Usaha Supplier</button>
+    </div>
+
+    <!-- TAB 1: FAKTUR PEMBELIAN -->
+    <div id="tabPurchaseHistory" class="purchase-tab-panel active">
+      <div class="threads-card">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>No. Nota Beli</th>
+                <th>Supplier</th>
+                <th>Barang / Qty</th>
+                <th>HPP (Modal)</th>
+                <th>Harga Jual Baru</th>
+                <th>Status Pembayaran</th>
+                <th style="text-align: right;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="purchaseTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: HUTANG USAHA SUPPLIER -->
+    <div id="tabSupplierDebt" class="purchase-tab-panel">
+      <div class="threads-card">
+        <div class="section-badge-title">
+          <h3 class="card-section-title">Daftar Hutang Tempo Dagang</h3>
+          <span class="badge-mono">SUPPLIER</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Supplier</th>
+                <th>No. Nota</th>
+                <th>Jatuh Tempo</th>
+                <th>Total Hutang</th>
+                <th>Sisa Hutang</th>
+                <th style="text-align: right;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="supplierDebtTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- LAMAN PENUH: FORM INPUT FAKTUR PEMBELIAN BARANG (MULTI-ITEM) -->
+<div class="full-page-screen" id="purchasePageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackPurchasePage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Kembali</span>
+    </button>
+    <h3>Input Faktur Pembelian</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <form id="purchaseForm" onsubmit="return false;" class="page-form-container" style="max-width: 540px;">
+      
+      <!-- INFORMASI FAKTUR & PEMASOK -->
+      <div class="threads-card" style="padding: 16px; margin-bottom: 12px;">
+        <div class="card-section-title" style="margin-bottom: 12px; font-size: 13.5px;">
+          Informasi Faktur &amp; Pemasok
+        </div>
+        <div class="form-group-row" style="margin-bottom: 10px;">
+          <div class="input-field-group">
+            <label for="purchNota">No. Faktur / Nota</label>
+            <div class="input-icon-wrap">
+              <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <input type="text" id="purchNota" placeholder="INV/SUP/2026/001" required autocomplete="off" />
+            </div>
+          </div>
+          <div class="input-field-group">
+            <label for="purchSupplier">Nama Supplier</label>
+            <div class="input-icon-wrap">
+              <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              </svg>
+              <input type="text" id="purchSupplier" placeholder="Nama Supplier" required autocomplete="off" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-row">
+          <div class="input-field-group">
+            <label for="purchPaymentMethod">Metode Pembayaran</label>
+            <select id="purchPaymentMethod">
+              <option value="Tunai">Tunai / Lunas Langsung</option>
+              <option value="Hutang">Hutang Usaha (Tempo)</option>
+            </select>
+          </div>
+          <div class="input-field-group hidden" id="wrapPurchDueDate">
+            <label for="purchDueDate">Jatuh Tempo</label>
+            <input type="date" id="purchDueDate" />
+          </div>
+        </div>
+      </div>
+
+      <!-- DAFTAR BARANG MASUK MULTI-ITEM -->
+      <div class="threads-card" style="padding: 16px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <strong style="font-size: 13.5px; color: var(--text-primary);">Daftar Barang Masuk</strong>
+            <span class="badge-mono" id="badgePurchItemsCount" style="margin-left: 6px;">0 Item</span>
+          </div>
+          <button type="button" class="btn-threads-primary" id="btnOpenPurchProductPicker" style="padding: 7px 12px; font-size: 12px;">
+            + Tambah Barang
+          </button>
+        </div>
+
+        <div id="purchItemsListContainer" style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="empty-state" id="purchEmptyState" style="padding: 24px 12px;">
+            <p>Belum ada barang ditambahkan</p>
+            <span>Sentuh tombol <strong>+ Tambah Barang</strong> di atas untuk memasukkan barang ke faktur ini</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RINGKASAN TOTAL FAKTUR -->
+      <div class="threads-card" id="purchSummaryCard" style="padding: 16px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px;">
+          <span>Total Qty Keseluruhan:</span>
+          <strong id="purchTotalQtyDisplay" style="color: var(--text-primary);">0 pcs</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 15px; border-top: 1px dashed var(--border-light); padding-top: 8px;">
+          <span style="font-weight: 800; color: var(--text-primary);">TOTAL FAKTUR</span>
+          <strong id="purchGrandTotalDisplay" style="font-size: 18px; font-weight: 800; color: var(--brand-primary);">Rp 0</strong>
+        </div>
+      </div>
+
+      <button type="submit" id="btnSavePurchase" class="btn-threads-primary block" style="height: 48px;">
+        Simpan Faktur Pembelian &amp; Perbarui Stok
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- LAMAN PENUH: PILIH BARANG MASUK (FULL-WIDTH HINGGA KE UJUNG) -->
+<div class="full-page-screen" id="purchProductPickerScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackPurchProductPicker" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Faktur</span>
+    </button>
+    <h3>Pilih Barang Masuk</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body" style="padding: 14px;">
+    <div style="width: 100%;">
+      <div class="input-field-group" style="margin-bottom: 12px;">
+        <label for="purchProductSearchInput">Cari Barang</label>
+        <div class="input-icon-wrap">
+          <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="purchProductSearchInput" placeholder="Ketik nama atau barcode barang..." autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="full-width-picker-list" id="purchProductOptionsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INPUT RINCIAN BARANG MASUK KE FAKTUR -->
+<div class="modal-wrapper" id="purchItemDetailModal">
+  <div class="modal-box modal-sm">
+    <div class="modal-head">
+      <h3>Rincian Barang Masuk</h3>
+      <button class="close-btn" id="btnClosePurchItemDetailModal" type="button">&times;</button>
+    </div>
+    <form id="purchItemDetailForm" onsubmit="return false;" class="modal-form-vertical">
+      <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 4px;">
+        <strong id="modalItemProdName" style="display: block; font-size: 13.5px; color: var(--text-primary);">-</strong>
+        <small id="modalItemProdStock" style="color: var(--text-secondary); font-size: 11px;">Stok saat ini: 0 pcs</small>
+      </div>
+
+      <div class="form-group-row">
+        <div class="input-field-group">
+          <label for="modalItemQty">Qty Masuk (Pcs)</label>
+          <input type="number" id="modalItemQty" min="1" placeholder="1" required />
+        </div>
+        <div class="input-field-group">
+          <label for="modalItemCostPrice">Harga Beli (HPP)</label>
+          <div class="input-icon-wrap">
+            <span class="currency-prefix-tag">Rp</span>
+            <input type="number" id="modalItemCostPrice" class="input-with-currency" min="0" placeholder="0" required />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group-row">
+        <div class="input-field-group">
+          <label for="modalItemSellPrice">Harga Jual Baru</label>
+          <div class="input-icon-wrap">
+            <span class="currency-prefix-tag">Rp</span>
+            <input type="number" id="modalItemSellPrice" class="input-with-currency" min="0" placeholder="0" required />
+          </div>
+        </div>
+        <div class="input-field-group">
+          <label for="modalItemExpireDate">Tgl Kadaluwarsa</label>
+          <input type="date" id="modalItemExpireDate" required />
+        </div>
+      </div>
+
+      <button type="submit" id="btnConfirmAddPurchItem" class="btn-threads-primary block" style="margin-top: 8px;">
+        Tambahkan ke Faktur
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EDIT FAKTUR PEMBELIAN -->
+<div class="modal-wrapper" id="editPurchaseModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Edit Faktur Pembelian Barang</h3>
+      <button class="close-btn" id="btnCloseEditPurchaseModal" type="button">&times;</button>
+    </div>
+    <form id="editPurchaseForm" onsubmit="return false;" class="modal-form-vertical">
+      <input type="hidden" id="editPurchId" />
+      <input type="hidden" id="editPurchProductId" />
+      <input type="hidden" id="editPurchOldQty" />
+
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="editPurchNota">No. Faktur / Nota Pembelian</label>
+          <input type="text" id="editPurchNota" required />
+        </div>
+        <div class="form-group">
+          <label for="editPurchSupplier">Nama Supplier</label>
+          <input type="text" id="editPurchSupplier" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Nama Barang Masuk</label>
+        <input type="text" id="editPurchProductName" disabled class="input-readonly-hint" />
+      </div>
+
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="editPurchQty">Jumlah Qty Masuk</label>
+          <input type="number" id="editPurchQty" min="1" required />
+        </div>
+        <div class="form-group">
+          <label for="editPurchCostPrice">Harga Modal Beli (HPP)</label>
+          <input type="number" id="editPurchCostPrice" min="0" required />
+        </div>
+      </div>
+
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="editPurchSellPrice">Harga Jual Baru Toko (Rp)</label>
+          <input type="number" id="editPurchSellPrice" min="0" required />
+        </div>
+        <div class="form-group">
+          <label for="editPurchExpireDate">Tanggal Expired</label>
+          <input type="date" id="editPurchExpireDate" required />
+        </div>
+      </div>
+
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="editPurchPaymentMethod">Metode Pembayaran</label>
+          <select id="editPurchPaymentMethod">
+            <option value="Tunai">Tunai / Lunas</option>
+            <option value="Hutang">Hutang Usaha (Tempo)</option>
+          </select>
+        </div>
+        <div class="form-group hidden" id="wrapEditPurchDueDate">
+          <label for="editPurchDueDate">Jatuh Tempo</label>
+          <input type="date" id="editPurchDueDate" />
+        </div>
+      </div>
+
+      <button type="submit" id="btnSaveEditPurchase" class="btn-threads-primary block" style="margin-top: 10px;">
+        Simpan Perubahan &amp; Sinkronkan Stok
+      </button>
+    </form>
+  </div>
+</div>

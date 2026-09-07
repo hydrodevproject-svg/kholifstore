@@ -1,0 +1,45 @@
+/* ================= PENGATURAN CETAK THERMAL ANTI-DUA LEMBAR ================= */
+@page {
+  size: auto;
+  margin: 0mm;
+}
+
+@media print {
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body > *:not(#printableReceiptWrapper) {
+    display: none !important;
+  }
+
+  #printableReceiptWrapper {
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  #printableReceiptArea {
+    width: var(--printer-paper-width, 58mm) !important;
+    max-width: var(--printer-paper-width, 58mm) !important;
+    margin: 0 auto !important;
+    padding: 2mm 0 !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    color: #000000 !important;
+  }
+
+  #printableReceiptArea * {
+    visibility: visible !important;
+  }
+}

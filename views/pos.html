@@ -1,0 +1,199 @@
+<!-- VIEW: KASIR (POS) -->
+<section id="view-pos" class="app-view active">
+  <div class="pos-workspace">
+    <aside class="cat-sidebar" id="catSidebar"></aside>
+
+    <div class="products-section">
+      <div class="products-grid" id="productsGrid"></div>
+    </div>
+
+    <aside class="order-panel" id="orderPanel">
+      <div class="order-panel-header">
+        <div class="order-title-box">
+          <h3>Rincian Pesanan</h3>
+          <span id="orderItemCounter" class="order-count-tag">0 item</span>
+        </div>
+        <button class="btn-close-cart-mobile" id="btnCloseCartMobile" title="Tutup">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="member-pos-bar" id="memberPosBar">
+        <div class="member-pos-info" id="btnSelectMemberPos">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <div class="member-label-box">
+            <strong id="posMemberName">Pilih Member (No. HP / ID)</strong>
+            <span id="posMemberMeta">Dapatkan Poin &amp; Diskon Khusus</span>
+          </div>
+        </div>
+        <button class="btn-clear-member hidden" id="btnClearMemberPos" title="Hapus Member">&times;</button>
+      </div>
+
+      <div class="order-actions">
+        <button class="action-tag" id="btnOpenDiscountModal" data-feature="feat_diskon">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+          <span id="lblDiskonBtn">Diskon</span>
+        </button>
+        <button class="action-tag" id="btnTahan" data-feature="feat_tahan_pesanan">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+          <span id="lblTahanBtn">Tahan</span>
+        </button>
+      </div>
+
+      <div class="order-list" id="orderList">
+        <div class="empty-state">
+          <svg class="mono-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <p>Keranjang belanja kosong</p>
+          <span>Sentuh produk atau scan barcode untuk menambahkan</span>
+        </div>
+      </div>
+
+      <div class="order-summary">
+        <div class="summary-line">
+          <span>Subtotal</span>
+          <strong id="valSubtotal">Rp 0</strong>
+        </div>
+        <div class="summary-line hidden" id="discountRow">
+          <span>Diskon <span class="badge-discount-tag" id="valDiscountLabel">Potongan</span></span>
+          <strong id="valDiscountAmount" style="color: #c92a2a;">- Rp 0</strong>
+        </div>
+        <div class="summary-line" id="taxRow">
+          <span>PPN (11%)</span>
+          <strong id="valTax">Rp 0</strong>
+        </div>
+        <div class="summary-line total-line">
+          <span>Total Tagihan</span>
+          <strong id="valGrandTotal">Rp 0</strong>
+        </div>
+        <div class="summary-line points-line hidden" id="pointsEarnRow">
+          <span>Poin Didapat (Rp 1.000 = 1 Poin)</span>
+          <strong id="valPointsEarned" style="color: #10b981;">+0 Poin</strong>
+        </div>
+        <button class="btn-checkout" id="btnBayar">
+          <span>Proses Bayar</span>
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- LAMAN PENUH: PEMBAYARAN & NOTA SUKSES -->
+<div class="full-page-screen" id="payPageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackPayPage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Keranjang</span>
+    </button>
+    <h3>Pembayaran</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <div id="payFormView" class="page-form-container">
+      <div class="total-big-wrap">
+        <small>Total Tagihan Transaksi</small>
+        <div class="total-big" id="payTotalBig">Rp 0</div>
+      </div>
+
+      <div class="pay-input-group">
+        <label for="inputPaid">Nominal Diterima Kasir:</label>
+        <input type="text" id="inputPaid" placeholder="Rp 0" inputmode="numeric" autocomplete="off" />
+      </div>
+
+      <div class="change-info-card">
+        <span>Uang Kembalian</span>
+        <strong id="valChange">Rp 0</strong>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="payMethodSelect">Metode Pembayaran</label>
+        <select id="payMethodSelect">
+          <option value="Tunai">Tunai / Cash</option>
+          <option value="Transfer / QRIS">Transfer / QRIS</option>
+          <option value="Piutang / Kasbon">Piutang / Kasbon (Khusus Member)</option>
+        </select>
+      </div>
+
+      <button class="btn-threads-primary block" id="btnFinishTransaction">Selesaikan &amp; Cetak Struk</button>
+    </div>
+
+    <div id="paySuccessView" class="hidden page-form-container">
+      <div class="success-header-anim">
+        <div class="success-icon-wrap">
+          <svg class="checkmark-svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+        <h3>Transaksi Berhasil</h3>
+        <p class="success-subtitle" id="succTrxInfo">TRX-0000 • 00:00</p>
+      </div>
+
+      <div class="receipt-card-preview">
+        <div class="receipt-row">
+          <span>Kasir / Member</span>
+          <strong id="succCashierMember">-</strong>
+        </div>
+        <div class="receipt-row">
+          <span>Total Belanja</span>
+          <strong id="succTotal">Rp 0</strong>
+        </div>
+        <div class="receipt-row">
+          <span>Nominal Bayar</span>
+          <span id="succPaid">Rp 0</span>
+        </div>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row receipt-highlight">
+          <span>Uang Kembalian</span>
+          <strong id="succChange">Rp 0</strong>
+        </div>
+      </div>
+
+      <div class="receipt-action-buttons">
+        <button class="btn-threads-secondary block" id="btnPrintReceiptSuccess">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          <span>Cetak Nota</span>
+        </button>
+        <button class="btn-whatsapp-action block" id="btnSendWaReceiptSuccess">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.761.814 2.791.815 3.179 0 5.766-2.587 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zm9.969 5.766c0 5.518-4.482 10-10 10-1.745 0-3.385-.45-4.818-1.237l-7.182 1.882 1.916-7c-.885-1.488-1.396-3.23-1.396-5.093 0-5.518 4.482-10 10-10s10 4.482 10 10z"/>
+          </svg>
+          <span>Kirim Nota ke WhatsApp</span>
+        </button>
+      </div>
+
+      <button class="btn-threads-primary block" id="btnNewTransaction" style="margin-top: 10px;">
+        <span>Mulai Transaksi Baru</span>
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

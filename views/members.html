@@ -1,0 +1,190 @@
+<!-- VIEW: MEMBER & PELANGGAN (SUB-MENU HUB MODEL PENGATURAN) -->
+<section id="view-members" class="app-view">
+  <div class="threads-container">
+    
+    <!-- HUB UTAMA SUB-MENU MEMBER -->
+    <div id="memberMenuView">
+      <div class="view-action-header">
+        <div>
+          <h2>Member &amp; Pelanggan</h2>
+          <p>Kelola data loyalitas, buku kasbon tempo, dan riwayat pesanan pelanggan.</p>
+        </div>
+      </div>
+
+      <div class="settings-sub-grid">
+        <div class="settings-menu-card" data-member-sub="subMemberList">
+          <div class="sub-card-icon-box">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Daftar Member</strong>
+          <span class="sub-card-desc">Database pelanggan, level &amp; poin</span>
+          <span class="badge-mono" style="margin-top: 8px;" id="badgeTotalMemberCount">0 Akun</span>
+        </div>
+
+        <div class="settings-menu-card" data-member-sub="subMemberDebt">
+          <div class="sub-card-icon-box" style="color: var(--brand-danger);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Piutang &amp; Kasbon</strong>
+          <span class="sub-card-desc">Buku belanja tempo &amp; pelunasan bon</span>
+          <span class="badge-mono" style="margin-top: 8px; background: #fee2e2; color: var(--brand-danger);" id="badgeTotalDebtCount">0 Kasbon</span>
+        </div>
+
+        <div class="settings-menu-card" data-member-sub="subMemberOrders">
+          <div class="sub-card-icon-box" style="color: var(--brand-accent);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Riwayat Belanja</strong>
+          <span class="sub-card-desc">Arsip transaksi &amp; kirim nota WA</span>
+          <span class="badge-mono" style="margin-top: 8px;" id="badgeTotalMemberOrders">0 Transaksi</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL SUB-MENU MEMBER -->
+    <div id="memberDetailView" class="hidden">
+      <div class="settings-detail-nav">
+        <button class="btn-back-screen" id="btnBackMemberSubMenu" type="button">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Menu Member</span>
+        </button>
+        <h3 id="memberSubTitle">Daftar Member</h3>
+      </div>
+
+      <!-- PANEL 1: DAFTAR MEMBER (DENGAN TOMBOL + MEMBER BARU DI DALAM) -->
+      <div class="sub-detail-panel hidden" id="panelSubMemberList">
+        <div class="threads-card">
+          <div class="table-filter-bar">
+            <input type="text" id="memberSearch" placeholder="Cari nama, no. WhatsApp, atau ID member..." />
+            <button type="button" class="btn-threads-primary" id="btnOpenAddMemberModal" style="white-space: nowrap;">
+              + Member Baru
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama &amp; WhatsApp</th>
+                  <th>Level / Diskon</th>
+                  <th>Poin</th>
+                  <th>Sisa Piutang</th>
+                  <th style="text-align: right;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="memberTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: PIUTANG & KASBON -->
+      <div class="sub-detail-panel hidden" id="panelSubMemberDebt">
+        <div class="threads-card">
+          <div class="section-badge-title">
+            <h3 class="card-section-title">Buku Catatan Kasbon / Piutang</h3>
+            <span class="badge-mono" style="background:#fee2e2; color:var(--brand-danger);">BELUM LUNAS</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+            Daftar pelanggan dengan tagihan kasbon belum lunas. Klik "Lunasi Kasbon" untuk mencatat pembayaran.
+          </p>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Pelanggan</th>
+                  <th>No. WhatsApp</th>
+                  <th>Total Kasbon</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Aksi Pelunasan</th>
+                </tr>
+              </thead>
+              <tbody id="memberDebtTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3: RIWAYAT PESANAN MEMBER -->
+      <div class="sub-detail-panel hidden" id="panelSubMemberOrders">
+        <div class="threads-card">
+          <div class="section-badge-title">
+            <h3 class="card-section-title">Arsip Transaksi Pelanggan Member</h3>
+            <span class="badge-mono">LOG NOTA</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>No. Struk</th>
+                  <th>Pelanggan</th>
+                  <th>Waktu</th>
+                  <th>Total Tagihan</th>
+                  <th>Poin Didapat</th>
+                  <th style="text-align: right;">Kirim Nota</th>
+                </tr>
+              </thead>
+              <tbody id="memberOrdersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- MODAL TAMBAH / EDIT DATA MEMBER -->
+<div class="modal-wrapper" id="addMemberModal">
+  <div class="modal-box modal-sm">
+    <div class="modal-head">
+      <h3 id="memberModalTitle">Tambah Member Baru</h3>
+      <button class="close-btn" id="btnCloseAddMemberModal" type="button">&times;</button>
+    </div>
+    <form id="memberForm" onsubmit="return false;" class="modal-form-vertical">
+      <input type="hidden" id="memberFormId" />
+      <div class="form-group">
+        <label for="memberFormName">Nama Lengkap</label>
+        <input type="text" id="memberFormName" placeholder="Contoh: Ibu Rahmatiah" required />
+      </div>
+      <div class="form-group">
+        <label for="memberFormPhone">Nomor WhatsApp</label>
+        <input type="tel" id="memberFormPhone" placeholder="0878..." required />
+      </div>
+      <div class="form-group-row">
+        <div class="form-group">
+          <label for="memberFormTier">Level Diskon</label>
+          <select id="memberFormTier">
+            <option value="Reguler (0%)">Reguler (0%)</option>
+            <option value="Silver (5%)">Silver (5%)</option>
+            <option value="Gold (10%)">Gold (10%)</option>
+            <option value="VIP Horeca (15%)">VIP Horeca (15%)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="memberFormPoints">Saldo Poin</label>
+          <input type="number" id="memberFormPoints" value="0" min="0" />
+        </div>
+      </div>
+      <button type="submit" id="btnSaveMember" class="btn-threads-primary block" style="margin-top: 10px;">
+        Simpan Data Member
+      </button>
+    </form>
+  </div>
+</div>

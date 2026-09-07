@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Kholif Store - POS &amp; Inventory System</title>
+  
+  <!-- PWA & META MOBILE SYSTEM -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kholif POS" />
+  <link rel="apple-touch-icon" href="logo.png" />
+  <link rel="icon" type="image/png" href="logo.png" />
+
+  <link rel="stylesheet" href="css/style.css?v=2026-v8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="mode-mobile">
+
+  <!-- ================= LAYAR LOGIN ================= -->
+  <div class="login-overlay" id="loginScreen">
+    <div class="login-wrapper">
+      
+      <div class="login-logo-outside">
+        <img src="logo.png" alt="Kholif Store" class="brand-img-large" />
+      </div>
+
+      <div class="login-card">
+        <form id="posLoginForm" class="login-form-box" onsubmit="return false;">
+          <div class="input-field-group">
+            <label for="loginUsername">Username</label>
+            <div class="input-icon-wrap">
+              <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <input type="text" id="loginUsername" placeholder="Username" autocomplete="username" required />
+            </div>
+          </div>
+
+          <div class="input-field-group">
+            <label for="loginPassword">Password</label>
+            <div class="input-icon-wrap">
+              <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <input type="password" id="loginPassword" placeholder="Kata sandi" autocomplete="current-password" required />
+              <button type="button" class="btn-toggle-password" id="btnTogglePassword" title="Lihat Sandi">
+                <svg id="eyeIcon" class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="device-mode-switch-box">
+            <div class="switch-meta">
+              <strong>Mode Layar Lebar (Tablet / PC)</strong>
+              <span>Multi-kolom tata letak meja kasir</span>
+            </div>
+            <label class="threads-switch">
+              <input type="checkbox" id="switchTabletMode" />
+              <span class="threads-slider"></span>
+            </label>
+          </div>
+
+          <div id="loginErrorMessage" class="login-error-msg hidden"></div>
+          <button type="submit" id="btnLoginSubmit" class="btn-login-submit">Lanjutkan</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= DRAWER NAVIGATION ================= -->
+  <div class="drawer-backdrop" id="drawerBackdrop" title="Sentuh area ini untuk menutup menu"></div>
+  <aside class="app-drawer" id="appDrawer">
+    <div class="drawer-header">
+      <div class="drawer-brand">
+        <img src="logo.png" alt="Kholif Store" class="drawer-logo" />
+        <div>
+          <h3>KHOLIF STORE</h3>
+          <span>Sistem Kasir &amp; Stok</span>
+        </div>
+      </div>
+      <button class="drawer-close-btn" id="btnCloseDrawer" title="Tutup">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer-user-info">
+      <div class="drawer-avatar">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <div class="drawer-user-text">
+        <strong id="drawerUserName">Pengguna</strong>
+        <span class="badge-mono" id="drawerUserRole">KASIR</span>
+      </div>
+    </div>
+
+    <nav class="drawer-menu-list">
+      <button class="nav-menu-item active" data-view="view-pos">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
+          <path d="M16 8h-8m8 4h-8m4 4h-4"></path>
+        </svg>
+        <span class="menu-label">Kasir (POS)</span>
+      </button>
+      <button class="nav-menu-item" data-view="view-members">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span class="menu-label">Member &amp; Piutang</span>
+      </button>
+      <button class="nav-menu-item" data-view="view-purchases">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        <span class="menu-label">Pembelian &amp; Hutang</span>
+      </button>
+      <button class="nav-menu-item" data-view="view-inventory">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <span class="menu-label">Persediaan &amp; Stok Opname</span>
+      </button>
+      <button class="nav-menu-item" data-view="view-reports">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span class="menu-label">Laporan Penjualan</span>
+      </button>
+      <button class="nav-menu-item" data-view="view-settings">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="menu-label">Pengaturan &amp; IT</span>
+      </button>
+    </nav>
+
+    <div class="drawer-footer">
+      <button class="btn-drawer-logout" id="btnDrawerLogout">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Keluar Sesi</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================= SHELL UTAMA APLIKASI ================= -->
+  <div class="pos-app">
+    <header class="pos-header">
+      <button class="brand-trigger-btn" id="btnOpenDrawer" title="Buka Navigasi">
+        <img src="logo.png" alt="Kholif Store" class="header-logo-img" />
+        <div class="brand-details">
+          <h1>KHOLIF STORE</h1>
+          <span>NAVIGASI ▾</span>
+        </div>
+      </button>
+
+      <div class="header-current-title" id="headerCurrentTitle">KASIR</div>
+
+      <div class="search-box" id="headerSearchBox">
+        <svg class="mono-icon search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="search" id="productSearch" placeholder="Cari barang atau scan barcode..." autocomplete="off" />
+        <div class="scanner-ready-badge" title="Scanner Siap">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"></path>
+          </svg>
+          <span>Scanner ON</span>
+        </div>
+      </div>
+
+      <div class="header-status-badge">
+        <span class="role-pill" id="lblUserRole">KASIR</span>
+        <span class="live-clock" id="liveClock">00:00:00</span>
+      </div>
+    </header>
+
+    <main class="main-viewport" id="mainViewport">
+      <div id="viewContainer"></div>
+    </main>
+
+    <!-- FLOATING CART BUTTON (MOBILE) -->
+    <button class="mobile-cart-fab hidden" id="btnOpenCartMobile">
+      <div class="fab-left">
+        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        <span class="fab-badge" id="mobileCartCount">0</span>
+      </div>
+      <div class="fab-right">
+        <span>Pesanan</span>
+        <strong id="mobileCartTotal">Rp 0</strong>
+      </div>
+    </button>
+
+    <footer class="pos-footer">
+      <span>Suralaga, Lombok Timur</span>
+      <span class="dot">•</span>
+      <span>Kholif Store POS</span>
+      <span class="dot">•</span>
+      <span>087861444070</span>
+    </footer>
+  </div>
+
+  <div id="modalContainer"></div>
+
+  <div id="printableReceiptWrapper" style="display: none;">
+    <div id="printableReceiptArea"></div>
+  </div>
+
+  <!-- SCRIPT REGISTRASI SERVICE WORKER PWA -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then((reg) => {
+            console.log("PWA Service Worker aktif:", reg.scope);
+          })
+          .catch((err) => {
+            console.warn("Registrasi PWA Service Worker gagal:", err);
+          });
+      });
+    }
+  </script>
+
+  <script type="module" src="src/app.js?v=2026-v8"></script>
+</body>
+</html>
