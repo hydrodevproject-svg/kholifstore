@@ -25,7 +25,7 @@
   color: var(--text-secondary);
 }
 
-/* ================= GRID KARTU MENU PENGATURAN (KOMPAK 2 KOLOM) ================= */
+/* ================= GRID KARTU MENU PENGATURAN / MEMBER (2 KOLOM KOMPAK) ================= */
 .settings-sub-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -251,7 +251,7 @@
 }
 
 .stat-card h3 {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 800;
   letter-spacing: -0.3px;
   color: var(--text-primary);
@@ -284,6 +284,21 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-whatsapp-action {
+  height: 40px;
+  background-color: #25d366 !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -356,4 +371,202 @@
 .btn-page-nav:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* ================= CONSOLE IT TOOLBAR & TEXTAREA ================= */
+.console-toolbar-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.console-textarea {
+  width: 100%;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11.5px;
+  padding: 10px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #0f172a;
+  color: #38bdf8;
+  outline: none;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.console-textarea:focus {
+  border-color: var(--brand-accent);
+}
+
+.console-json-preview {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================= KONEKSI BLUETOOTH PRINTER ================= */
+.printer-bluetooth-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.bluetooth-info strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.bluetooth-info span {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.advance-printer-card {
+  background: #f8fafc;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+/* ================= METRIK & PROGRESS STORAGE ================= */
+.metrics-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.metrics-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.metrics-head-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.btn-metrics-refresh {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.metrics-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metrics-stat-box {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.metrics-stat-box small {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.metrics-stat-box strong {
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.metrics-sync-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+}
+
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-label-row strong {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.progress-label-row span {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1e40af;
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.35s var(--spring);
+}
+
+.progress-fill-blue {
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+}
+
+.progress-fill-purple {
+  background: linear-gradient(90deg, #9333ea, #db2777);
+}
+
+.progress-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-secondary);
 }
