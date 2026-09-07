@@ -16,7 +16,7 @@
   justify-content: space-between;
   padding: 0 12px;
   gap: 8px;
-  height: 52px; /* Lebih ramping dari 64px agar tidak memakan ruang layar HP */
+  height: 52px;
   flex-shrink: 0;
   z-index: 20;
 }
@@ -319,7 +319,7 @@
   cursor: pointer;
 }
 
-/* Wadah Utama Viewport */
+/* Wadah Utama Viewport & Batas Tinggi Scroll */
 .main-viewport {
   flex: 1;
   overflow: hidden;
