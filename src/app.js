@@ -134,12 +134,12 @@ export function switchView(viewId) {
   const target = document.getElementById(viewId);
   if (target) target.classList.add("active");
 
-  const isTablet = document.body.classList.contains("mode-tablet");
+  const isTabletOrDesktop = document.body.classList.contains("mode-tablet") || window.innerWidth >= 1024;
   if (viewId === "view-pos") {
     document.getElementById("headerSearchBox")?.classList.remove("hidden");
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "none";
-    if (!isTablet) document.getElementById("btnOpenCartMobile")?.classList.remove("hidden");
+    if (!isTabletOrDesktop) document.getElementById("btnOpenCartMobile")?.classList.remove("hidden");
   } else {
     document.getElementById("headerSearchBox")?.classList.add("hidden");
     const hTitle = document.getElementById("headerCurrentTitle");
@@ -225,16 +225,25 @@ function initSessionAndLogin() {
   }
 
   const switchTabletMode = document.getElementById("switchTabletMode");
-  const savedTabletPref = localStorage.getItem("kholif_pos_tablet_mode") === "true";
+  const storedTabletPref = localStorage.getItem("kholif_pos_tablet_mode");
+  const isLargeScreen = window.innerWidth >= 1024;
+  const isTabletMode = storedTabletPref !== null ? storedTabletPref === "true" : isLargeScreen;
+
   if (switchTabletMode) {
-    switchTabletMode.checked = savedTabletPref;
+    switchTabletMode.checked = isTabletMode;
     switchTabletMode.addEventListener("change", (e) => {
       const isChecked = e.target.checked;
       localStorage.setItem("kholif_pos_tablet_mode", isChecked ? "true" : "false");
       applyDeviceMode(isChecked);
     });
   }
-  applyDeviceMode(savedTabletPref);
+  applyDeviceMode(isTabletMode);
+
+  window.addEventListener("resize", () => {
+    if (localStorage.getItem("kholif_pos_tablet_mode") === null) {
+      applyDeviceMode(window.innerWidth >= 1024);
+    }
+  });
 
   const btnTogglePassword = document.getElementById("btnTogglePassword");
   const loginPassword = document.getElementById("loginPassword");
@@ -276,7 +285,7 @@ function initSessionAndLogin() {
 
 function applyDeviceMode(isTablet) {
   if (isTablet) {
-    document.body.classList.remove("mode-tablet");
+    document.body.classList.remove("mode-mobile");
     document.body.classList.add("mode-tablet");
     document.getElementById("btnOpenCartMobile")?.classList.add("hidden");
   } else {
@@ -355,7 +364,6 @@ function initSettingsModule() {
 
   initMasterItModule();
 
-  // Pencadangan Transaksi JSON
   const btnBackup = document.getElementById("btnBackupTransactions");
   if (btnBackup) {
     btnBackup.onclick = async () => {
@@ -381,7 +389,6 @@ function initSettingsModule() {
     };
   }
 
-  // Import Data Persediaan (Excel, CSV, JSON)
   const btnTriggerImport = document.getElementById("btnTriggerImportInventory");
   const fileInputImport = document.getElementById("inputImportInventoryFile");
   const btnTemplate = document.getElementById("btnDownloadTemplateImport");
@@ -403,7 +410,6 @@ function initSettingsModule() {
     btnTemplate.onclick = () => downloadInventoryCsvTemplate();
   }
 
-  // Pengosongan Transaksi
   const btnClear = document.getElementById("btnClearAllTransactions");
   if (btnClear) {
     btnClear.onclick = async () => {
@@ -429,7 +435,6 @@ function initSettingsModule() {
   }
 }
 
-// Handler Pembaca Berkas Import Persediaan
 async function handleImportInventoryFile(file) {
   const fileName = file.name.toLowerCase();
   showScanToast("Membaca berkas persediaan...");
