@@ -177,10 +177,18 @@ export async function loadInitialStateFromDB() {
 
   const localSales = await getLocalItem("kholif_pos_sales");
   if (localSales && Array.isArray(localSales)) {
-    state.salesTransactions = localSales;
+    state.salesTransactions = localSales.sort((a, b) => {
+      return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
+    });
   } else {
     const legacy = localStorage.getItem("kholif_pos_sales");
-    if (legacy) state.salesTransactions = JSON.parse(legacy);
+    if (legacy) {
+      try {
+        state.salesTransactions = JSON.parse(legacy).sort((a, b) => {
+          return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
+        });
+      } catch (e) {}
+    }
     await setLocalItem("kholif_pos_sales", state.salesTransactions);
   }
 
@@ -326,7 +334,7 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("members", err)
   );
 
-  // 3. Transaksi Penjualan (Smart Merge)
+  // 3. Transaksi Penjualan (Disortir Berdasarkan Timestamp Kronologis)
   onSnapshot(
     doc(db, "system_data", "sales"),
     async (snap) => {
@@ -336,7 +344,7 @@ export function initFirebaseSync(callbacks = {}) {
         incomingList.forEach((trx) => salesMap.set(trx.id, trx));
 
         state.salesTransactions = Array.from(salesMap.values()).sort((a, b) => {
-          return (b.id || "").localeCompare(a.id || "");
+          return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
         });
 
         await setLocalItem("kholif_pos_sales", state.salesTransactions);
