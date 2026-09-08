@@ -64,7 +64,7 @@
         <h3 id="invSubTitle">Detail Persediaan</h3>
       </div>
 
-      <!-- PANEL 1: KATALOG STOK (DENGAN TOMBOL BARANG BARU & PAGINASI) -->
+      <!-- PANEL 1: KATALOG STOK -->
       <div class="sub-detail-panel hidden" id="panelInvSubCatalog">
         <div class="threads-card">
           <div class="table-filter-bar">
@@ -89,7 +89,6 @@
               <tbody id="inventoryCatalogTableBody"></tbody>
             </table>
           </div>
-          <!-- Wadah Paginasi 20 Data -->
           <div id="invCatalogPagination"></div>
         </div>
       </div>
@@ -114,7 +113,7 @@
         </div>
       </div>
 
-      <!-- PANEL 3: RIWAYAT OPNAME (DENGAN TOMBOL STOK OPNAME) -->
+      <!-- PANEL 3: RIWAYAT OPNAME -->
       <div class="sub-detail-panel hidden" id="panelInvSubOpnames">
         <div class="threads-card">
           <div class="section-badge-title" style="margin-bottom: 14px;">
@@ -122,7 +121,7 @@
               <h3 class="card-section-title" style="margin-bottom: 2px;">Log Penyesuaian Fisik</h3>
               <span style="font-size: 11.5px; color: var(--text-secondary);">Catatan audit selisih persediaan fisik vs sistem.</span>
             </div>
-            <button type="button" class="btn-threads-primary" id="btnOpenStockOpnameModal" style="white-space: nowrap;">
+            <button type="button" class="btn-threads-primary" id="btnOpenStockOpnamePage" style="white-space: nowrap;">
               + Stok Opname
             </button>
           </div>
@@ -164,8 +163,6 @@
 
   <div class="page-screen-body">
     <form id="productPageForm" class="page-form-container" onsubmit="return false;">
-      
-      <!-- KODE BARCODE -->
       <div class="input-field-group">
         <label for="prodFormBarcode">Kode Barcode / EAN</label>
         <div class="input-icon-wrap">
@@ -176,7 +173,6 @@
         </div>
       </div>
 
-      <!-- NAMA BARANG -->
       <div class="input-field-group">
         <label for="prodFormName">Nama Barang</label>
         <div class="input-icon-wrap">
@@ -187,11 +183,10 @@
         </div>
       </div>
 
-      <!-- KATEGORI BARANG -->
       <div class="input-field-group">
         <label>Kategori Produk</label>
         <div class="custom-picker-row" id="btnOpenCategoryPage">
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--brand-accent);">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
@@ -204,7 +199,6 @@
         </div>
       </div>
 
-      <!-- HARGA HPP & HARGA JUAL -->
       <div class="form-group-row">
         <div class="input-field-group">
           <label for="prodFormCostPrice">Modal Pokok (HPP Satuan)</label>
@@ -222,7 +216,6 @@
         </div>
       </div>
 
-      <!-- STOK AWAL & CATATAN PERINGATAN -->
       <div class="input-field-group">
         <label for="prodFormInitialStock">Jumlah Stok Tersedia (Pcs)</label>
         <div class="input-icon-wrap">
@@ -232,23 +225,10 @@
           </svg>
           <input type="number" id="prodFormInitialStock" placeholder="0" min="0" required />
         </div>
-        <div class="field-info-banner">
-          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--brand-accent); width: 15px; height: 15px;">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-          <span>Stok hanya dapat diedit secara manual saat pembuatan awal. Selanjutnya penyesuaian stok dilakukan melalui modul <strong>Stok Opname</strong> atau <strong>Pembelian Barang</strong>.</span>
-        </div>
       </div>
 
-      <button type="submit" class="btn-threads-primary block" style="margin-top: 14px; height: 48px;">
-        <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-          <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        <span>Simpan Data Barang</span>
+      <button type="submit" class="btn-threads-primary block" style="margin-top: 10px; height: 44px;">
+        Simpan Data Barang
       </button>
     </form>
   </div>
@@ -272,9 +252,7 @@
     <div class="category-options-list" id="categoryOptionsList"></div>
 
     <div class="add-category-box">
-      <div class="box-title">
-        <strong>+ Buat Kategori Baru</strong>
-      </div>
+      <div class="box-title"><strong>+ Buat Kategori Baru</strong></div>
       <div class="inline-add-cat-row">
         <input type="text" id="inNewCategoryName" placeholder="Ketik nama kategori baru..." />
         <button type="button" id="btnAddCategoryInline">Simpan</button>
@@ -283,35 +261,90 @@
   </div>
 </div>
 
-<!-- MODAL STOK OPNAME -->
-<div class="modal-wrapper" id="stockOpnameModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3>Penyesuaian Stok Opname</h3>
-      <button class="close-btn" id="btnCloseStockOpnameModal">&times;</button>
-    </div>
-    <form id="stockOpnameForm" class="modal-form-vertical" onsubmit="return false;">
-      <div class="form-group">
-        <label for="opnameProductSelect">Pilih Barang</label>
-        <select id="opnameProductSelect"></select>
+<!-- FULL-PAGE SCREEN: STOK OPNAME (PENGGANTI MODAL POPUP) -->
+<div class="full-page-screen" id="stockOpnamePageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackStockOpnamePage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Persediaan</span>
+    </button>
+    <h3>Penyesuaian Stok Opname</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <form id="stockOpnamePageForm" class="page-form-container" onsubmit="return false;">
+      
+      <!-- PEMILIH BARANG DENGAN LAMAN PENUH -->
+      <div class="input-field-group">
+        <label>Pilih Barang yang Di-audit</label>
+        <div class="custom-picker-row" id="btnOpenOpnameProductPicker">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--brand-accent);">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+            <span id="opnameSelectedProductName" style="font-weight: 700; color: var(--text-primary);">Pilih Barang...</span>
+          </div>
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          <input type="hidden" id="opnameSelectedProductId" />
+        </div>
       </div>
+
       <div class="form-group-row">
         <div class="form-group">
-          <label for="opnameSystemStock">Stok Sistem</label>
-          <input type="text" id="opnameSystemStock" readonly class="input-readonly-hint" />
+          <label for="opnameSystemStock">Stok Sistem Saat Ini</label>
+          <input type="text" id="opnameSystemStock" readonly class="input-readonly-hint" value="0 pcs" />
         </div>
         <div class="form-group">
-          <label for="opnamePhysicalStock">Stok Fisik Nyata</label>
-          <input type="number" id="opnamePhysicalStock" placeholder="0" required />
+          <label for="opnamePhysicalStock">Stok Fisik Nyata (Pcs)</label>
+          <input type="number" id="opnamePhysicalStock" placeholder="0" min="0" required />
         </div>
       </div>
+
       <div class="form-group">
         <label for="opnameNote">Keterangan / Alasan Selisih</label>
-        <input type="text" id="opnameNote" placeholder="Cth: Barang rusak, salah hitung" />
+        <input type="text" id="opnameNote" placeholder="Cth: Barang rusak, bocor, salah hitung..." required />
       </div>
-      <button type="submit" class="btn-threads-primary block" style="margin-top: 8px;">
-        Simpan Hasil Opname
+
+      <button type="submit" class="btn-threads-primary block" style="margin-top: 10px; height: 44px;">
+        Simpan Hasil Audit Opname
       </button>
     </form>
+  </div>
+</div>
+
+<!-- FULL-PAGE SCREEN: CARI & PILIH BARANG OPNAME -->
+<div class="full-page-screen" id="opnameProductPickerScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackOpnameProductPicker" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Opname</span>
+    </button>
+    <h3>Pilih Barang Audit</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body" style="padding: 14px;">
+    <div style="width: 100%;">
+      <div class="input-field-group" style="margin-bottom: 12px;">
+        <label for="opnameProductSearchInput">Cari Barang Opname</label>
+        <div class="input-icon-wrap">
+          <svg class="mono-icon input-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="opnameProductSearchInput" placeholder="Ketik nama atau barcode barang..." autocomplete="off" />
+        </div>
+      </div>
+      <div class="full-width-picker-list" id="opnameProductOptionsList"></div>
+    </div>
   </div>
 </div>
