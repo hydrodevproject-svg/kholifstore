@@ -273,7 +273,12 @@ export async function updateQty(id, delta) {
   }
 
   item.qty += delta;
-  if (item.qty <= 0) state.cart = state.cart.filter((i) => i.id !== id);
+  if (item.qty <= 0) {
+    state.cart = state.cart.filter((i) => i.id !== id);
+    if (state.cart.length === 0) {
+      state.currentDiscountNominal = 0;
+    }
+  }
   renderCart();
 }
 
