@@ -1,7 +1,7 @@
 // src/reports.js
 import { state, persistSales } from "./state.js";
 import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
-import { showScanToast, debounce } from "./utils.js";
+import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { renderAllMemberData } from "./members.js";
 
@@ -27,20 +27,22 @@ export function initReportsModule() {
   if (btnSendWaTrxEdit) {
     btnSendWaTrxEdit.onclick = async () => {
       if (!state.currentEditingTrx) return;
-      let target = state.currentEditingTrx.member?.phone ? state.currentEditingTrx.member.phone.replace(/^0/, "62").replace(/\D/g, "") : "";
-      if (!target) {
+      let target = normalizePhoneNumber(state.currentEditingTrx.member?.phone || state.currentEditingTrx.member?.wa || "");
+      if (!target || target.length < 9) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
-        target = inp.replace(/^0/, "62").replace(/\D/g, "");
+        target = normalizePhoneNumber(inp);
       }
-      window.open(`https://wa.me/${target}?text=${generateWhatsAppText(state.currentEditingTrx)}`, "_blank");
+      if (target && target.length >= 9) {
+        window.open(`https://wa.me/${target}?text=${generateWhatsAppText(state.currentEditingTrx)}`, "_blank");
+      }
     };
   }
 
   // Klik Best Seller membuka analisis barang laris & peringatan restock
-  const cardBestSeller = document.getElementById("cardBestSellerClickable");
-  if (cardBestSeller) {
-    cardBestSeller.onclick = () => openFastMovingPage();
+  const cardBestSellerClickable = document.getElementById("cardBestSellerClickable");
+  if (cardBestSellerClickable) {
+    cardBestSellerClickable.onclick = () => openFastMovingPage();
   }
 
   const btnBackFast = document.getElementById("btnBackFastMovingPage");
