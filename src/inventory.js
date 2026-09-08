@@ -340,13 +340,9 @@ function renderInventoryCatalogTable() {
       <div class="pagination-bar">
         <span>Menampilkan <strong>${startNum} - ${endNum}</strong> dari <strong>${totalItems}</strong> barang</span>
         <div class="pagination-controls">
-          <button type="button" class="btn-page-nav" id="btnCatalogPrev" ${catalogCurrentPage <= 1 ? "disabled" : ""}>
-            Sebelumnya
-          </button>
+          <button type="button" class="btn-page-nav" id="btnCatalogPrev" ${catalogCurrentPage <= 1 ? "disabled" : ""}>Sebelumnya</button>
           <span style="font-weight:700; color:var(--text-primary); padding: 0 4px;">${catalogCurrentPage} / ${totalPages}</span>
-          <button type="button" class="btn-page-nav" id="btnCatalogNext" ${catalogCurrentPage >= totalPages ? "disabled" : ""}>
-            Selanjutnya
-          </button>
+          <button type="button" class="btn-page-nav" id="btnCatalogNext" ${catalogCurrentPage >= totalPages ? "disabled" : ""}>Selanjutnya</button>
         </div>
       </div>
     `;
@@ -487,41 +483,62 @@ function renderStockOpnamesTable() {
 }
 
 function initStockOpnameEvents() {
-  const modal = document.getElementById("stockOpnameModal");
-  const btnOpen = document.getElementById("btnOpenStockOpnameModal");
-  const btnClose = document.getElementById("btnCloseStockOpnameModal");
-  const form = document.getElementById("stockOpnameForm");
-  const selectProd = document.getElementById("opnameProductSelect");
-  const txtSysStock = document.getElementById("opnameSystemStock");
-  const inPhysStock = document.getElementById("opnamePhysicalStock");
+  const screen = document.getElementById("stockOpnamePageScreen");
+  const btnOpen = document.getElementById("btnOpenStockOpnamePage");
+  const btnBack = document.getElementById("btnBackStockOpnamePage");
+  const form = document.getElementById("stockOpnamePageForm");
+  
+  const btnOpenPicker = document.getElementById("btnOpenOpnameProductPicker");
+  const btnBackPicker = document.getElementById("btnBackOpnameProductPicker");
+  const searchInputPicker = document.getElementById("opnameProductSearchInput");
 
   if (btnOpen) {
     btnOpen.onclick = () => {
       form.reset();
-      selectProd.innerHTML = (state.productsDB || []).map((p) => `<option value="${p.id}">${p.name} (Stok: ${p.stock ?? 0})</option>`).join("");
-      selectProd.onchange = () => {
-        const p = state.productsDB.find((item) => item && item.id === Number(selectProd.value));
-        if (p && txtSysStock) txtSysStock.value = Number(p.stock) || 0;
-      };
-      selectProd.dispatchEvent(new Event("change"));
-      modal?.classList.add("open");
+      document.getElementById("opnameSelectedProductId").value = "";
+      document.getElementById("opnameSelectedProductName").textContent = "Pilih Barang...";
+      document.getElementById("opnameSystemStock").value = "0 pcs";
+      screen?.classList.add("active");
       reinforceHistoryBarrier();
     };
   }
 
-  if (btnClose) {
-    btnClose.onclick = () => modal?.classList.remove("open");
+  if (btnBack) {
+    btnBack.onclick = () => window.history.back();
+  }
+
+  if (btnOpenPicker) {
+    btnOpenPicker.onclick = () => {
+      if (searchInputPicker) searchInputPicker.value = "";
+      renderOpnameProductOptions("");
+      document.getElementById("opnameProductPickerScreen")?.classList.add("active");
+      reinforceHistoryBarrier();
+      setTimeout(() => searchInputPicker?.focus(), 150);
+    };
+  }
+
+  if (btnBackPicker) {
+    btnBackPicker.onclick = () => window.history.back();
+  }
+
+  if (searchInputPicker) {
+    searchInputPicker.addEventListener("input", debounce((e) => {
+      renderOpnameProductOptions(e.target.value.toLowerCase().trim());
+    }, 60));
   }
 
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const pId = Number(selectProd.value);
+      const pId = Number(document.getElementById("opnameSelectedProductId").value);
       const prod = state.productsDB.find((p) => p && p.id === pId);
-      if (!prod) return;
+      if (!prod) {
+        await showThemedAlert("Pilih Barang", "Silakan tentukan barang yang di-audit terlebih dahulu!", "error");
+        return;
+      }
 
       const sysStock = Number(prod.stock) || 0;
-      const physStock = parseInt(inPhysStock.value, 10) || 0;
+      const physStock = parseInt(document.getElementById("opnamePhysicalStock").value, 10) || 0;
       const diff = physStock - sysStock;
       const note = document.getElementById("opnameNote").value.trim();
 
@@ -540,11 +557,56 @@ function initStockOpnameEvents() {
       });
       persistOpnames();
 
-      modal?.classList.remove("open");
+      window.history.back();
       renderAllInventoryData();
       renderProducts();
       showScanToast(`Stok ${prod.name} disesuaikan ke ${physStock}`);
       await showThemedAlert("Stok Opname Selesai", `Stok fisik ${prod.name} diperbarui menjadi ${physStock} pcs.`);
     });
   }
+}
+
+function renderOpnameProductOptions(q = "") {
+  const container = document.getElementById("opnameProductOptionsList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const filtered = state.productsDB.filter((p) => {
+    if (!p) return false;
+    const name = (p.name || "").toLowerCase();
+    const barcode = (p.barcode || "").toLowerCase();
+    const cat = (p.cat || "").toLowerCase();
+    return name.includes(q) || barcode.includes(q) || cat.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 30px 16px;">
+        <p>Barang tidak ditemukan</p>
+        <span>Periksa kembali kata kunci pencarian</span>
+      </div>
+    `;
+    return;
+  }
+
+  filtered.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "cat-select-card";
+    card.innerHTML = `
+      <div>
+        <strong style="display:block; font-size:13px; color:var(--text-primary);">${p.name}</strong>
+        <small style="color:var(--text-secondary); font-size:11px;">Stok Sistem: ${p.stock} pcs • ${p.cat}</small>
+      </div>
+      <div class="cat-radio-circle"></div>
+    `;
+
+    card.onclick = () => {
+      document.getElementById("opnameSelectedProductId").value = p.id;
+      document.getElementById("opnameSelectedProductName").textContent = p.name;
+      document.getElementById("opnameSystemStock").value = `${p.stock} pcs`;
+      window.history.back();
+    };
+
+    container.appendChild(card);
+  });
 }
