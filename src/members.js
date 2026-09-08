@@ -54,6 +54,77 @@ export function initMembersModule() {
     memberSearch.addEventListener("input", debounce(() => renderMemberList(), 80));
   }
 
+  // Event Delegation Terpusat: Tabel Daftar Member (Edit & Hapus)
+  const memberTableBody = document.getElementById("memberTableBody");
+  if (memberTableBody) {
+    memberTableBody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest(".btn-edit-mbr");
+      if (editBtn) {
+        const mbr = state.membersDB.find((x) => x.id === editBtn.getAttribute("data-id"));
+        if (mbr) openEditMemberModal(mbr);
+        return;
+      }
+
+      const delBtn = e.target.closest(".btn-del-mbr");
+      if (delBtn) {
+        const id = delBtn.getAttribute("data-id");
+        const confirmed = await showThemedConfirm("Hapus Member", "Apakah Anda yakin ingin menghapus member ini dari database?");
+        if (confirmed) {
+          state.membersDB = state.membersDB.filter((x) => x.id !== id);
+          persistMembers();
+          renderAllMemberData();
+          showScanToast("Member berhasil dihapus");
+        }
+      }
+    });
+  }
+
+  // Event Delegation Terpusat: Tabel Piutang & Kasbon
+  const memberDebtTableBody = document.getElementById("memberDebtTableBody");
+  if (memberDebtTableBody) {
+    memberDebtTableBody.addEventListener("click", async (e) => {
+      const payBtn = e.target.closest(".btn-pay-debt");
+      if (!payBtn) return;
+      const mbr = state.membersDB.find((x) => x.id === payBtn.getAttribute("data-id"));
+      if (!mbr) return;
+
+      const payInput = await showThemedPrompt(
+        "Pelunasan Kasbon",
+        `Sisa piutang ${mbr.name}: Rp ${mbr.debt.toLocaleString("id-ID")}\nMasukkan nominal pelunasan:`,
+        mbr.debt
+      );
+      const payVal = parseInt(payInput, 10);
+      if (payVal > 0) {
+        mbr.debt = Math.max(0, mbr.debt - payVal);
+        persistMembers();
+        renderAllMemberData();
+        showScanToast("Pembayaran kasbon dicatat");
+      }
+    });
+  }
+
+  // Event Delegation Terpusat: Tabel Riwayat Belanja Member (Kirim WA)
+  const memberOrdersTableBody = document.getElementById("memberOrdersTableBody");
+  if (memberOrdersTableBody) {
+    memberOrdersTableBody.addEventListener("click", async (e) => {
+      const waBtn = e.target.closest(".btn-wa-send");
+      if (!waBtn) return;
+      const trx = state.salesTransactions.find((x) => x.id === waBtn.getAttribute("data-id"));
+      if (!trx) return;
+
+      let targetPhone = normalizePhoneNumber(trx.member?.phone || trx.member?.wa || "");
+      if (!targetPhone || targetPhone.length < 9) {
+        const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
+        if (!inp) return;
+        targetPhone = normalizePhoneNumber(inp);
+      }
+
+      if (targetPhone && targetPhone.length >= 9) {
+        window.open(`https://wa.me/${targetPhone}?text=${generateWhatsAppText(trx)}`, "_blank");
+      }
+    });
+  }
+
   initMemberFormEvents();
   renderAllMemberData();
 }
@@ -102,31 +173,11 @@ export function renderMemberList() {
       <td><strong>${m.points}</strong> Poin</td>
       <td><strong style="color: ${m.debt > 0 ? 'var(--brand-danger)' : 'var(--text-primary)'};">Rp ${m.debt.toLocaleString("id-ID")}</strong></td>
       <td style="text-align: right;">
-        <button class="btn-table-action btn-edit-mbr" data-id="${m.id}">Edit</button>
-        <button class="btn-table-action btn-delete btn-del-mbr" data-id="${m.id}">Hapus</button>
+        <button type="button" class="btn-table-action btn-edit-mbr" data-id="${m.id}">Edit</button>
+        <button type="button" class="btn-table-action btn-delete btn-del-mbr" data-id="${m.id}">Hapus</button>
       </td>
     </tr>
   `).join("");
-
-  tbody.querySelectorAll(".btn-edit-mbr").forEach((btn) => {
-    btn.onclick = () => {
-      const mbr = state.membersDB.find((x) => x.id === btn.getAttribute("data-id"));
-      if (mbr) openEditMemberModal(mbr);
-    };
-  });
-
-  tbody.querySelectorAll(".btn-del-mbr").forEach((btn) => {
-    btn.onclick = async () => {
-      const id = btn.getAttribute("data-id");
-      const confirmed = await showThemedConfirm("Hapus Member", "Apakah Anda yakin ingin menghapus member ini dari database?");
-      if (confirmed) {
-        state.membersDB = state.membersDB.filter((x) => x.id !== id);
-        persistMembers();
-        renderAllMemberData();
-        showScanToast("Member berhasil dihapus");
-      }
-    };
-  });
 }
 
 export function renderMemberDebts() {
@@ -146,29 +197,10 @@ export function renderMemberDebts() {
       <td><strong style="color:var(--brand-danger);">Rp ${m.debt.toLocaleString("id-ID")}</strong></td>
       <td><span class="badge-mono" style="background:#fee2e2; color:var(--brand-danger);">Belum Lunas</span></td>
       <td style="text-align: right;">
-        <button class="btn-table-action btn-pay-debt" data-id="${m.id}">Lunasi Kasbon</button>
+        <button type="button" class="btn-table-action btn-pay-debt" data-id="${m.id}">Lunasi Kasbon</button>
       </td>
     </tr>
   `).join("");
-
-  tbody.querySelectorAll(".btn-pay-debt").forEach((btn) => {
-    btn.onclick = async () => {
-      const mbr = state.membersDB.find((x) => x.id === btn.getAttribute("data-id"));
-      if (!mbr) return;
-      const payInput = await showThemedPrompt(
-        "Pelunasan Kasbon",
-        `Sisa piutang ${mbr.name}: Rp ${mbr.debt.toLocaleString("id-ID")}\nMasukkan nominal pelunasan:`,
-        mbr.debt
-      );
-      const payVal = parseInt(payInput, 10);
-      if (payVal > 0) {
-        mbr.debt = Math.max(0, mbr.debt - payVal);
-        persistMembers();
-        renderAllMemberData();
-        showScanToast("Pembayaran kasbon dicatat");
-      }
-    };
-  });
 }
 
 export function renderMemberOrders() {
@@ -181,7 +213,8 @@ export function renderMemberOrders() {
     return;
   }
 
-  tbody.innerHTML = memberTrx.map((trx) => {
+  // Menampilkan 50 riwayat belanja terakhir agar peramban ponsel tetap responsif
+  tbody.innerHTML = memberTrx.slice(0, 50).map((trx) => {
     const pts = Math.floor(trx.total / 1000);
     return `
       <tr>
@@ -191,29 +224,11 @@ export function renderMemberOrders() {
         <td><strong>Rp ${trx.total.toLocaleString("id-ID")}</strong></td>
         <td><span class="badge-mono" style="color:var(--brand-success); background:#ecfdf5;">+${pts} Poin</span></td>
         <td style="text-align: right;">
-          <button class="btn-table-action btn-wa-send" data-id="${trx.id}">WA Nota</button>
+          <button type="button" class="btn-table-action btn-wa-send" data-id="${trx.id}">WA Nota</button>
         </td>
       </tr>
     `;
   }).join("");
-
-  tbody.querySelectorAll(".btn-wa-send").forEach((btn) => {
-    btn.onclick = async () => {
-      const trx = state.salesTransactions.find((x) => x.id === btn.getAttribute("data-id"));
-      if (!trx) return;
-      
-      let targetPhone = normalizePhoneNumber(trx.member?.phone || trx.member?.wa || "");
-      if (!targetPhone || targetPhone.length < 9) {
-        const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
-        if (!inp) return;
-        targetPhone = normalizePhoneNumber(inp);
-      }
-      
-      if (targetPhone && targetPhone.length >= 9) {
-        window.open(`https://wa.me/${targetPhone}?text=${generateWhatsAppText(trx)}`, "_blank");
-      }
-    };
-  });
 }
 
 function openEditMemberModal(m) {
