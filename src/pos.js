@@ -1,7 +1,7 @@
 // src/pos.js
 import { state, persistProducts, persistSales, persistMembers, persistFinance } from "./state.js";
 import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
-import { showScanToast, playCashChime } from "./utils.js";
+import { showScanToast, playCashChime, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { refreshProductPriceFromBatches } from "./purchases.js";
 import { renderAllInventoryData } from "./inventory.js";
@@ -473,6 +473,7 @@ function initPosEvents() {
 
       const newTrx = {
         id: trxId,
+        timestamp: Date.now(),
         date: `${dayName}, ${dateFormatted}`,
         time: fullDateTimeStr,
         cashier: state.currentUser ? state.currentUser.name : "Kasir",
@@ -556,7 +557,7 @@ function initPosEvents() {
     };
   }
 
-  // Pengiriman Nota WA langsung tanpa memunculkan prompt jika nomor member tersedia
+  // Pengiriman Nota WA langsung dengan normalisasi format nomor
   const btnSendWaReceiptSuccess = document.getElementById("btnSendWaReceiptSuccess");
   if (btnSendWaReceiptSuccess) {
     btnSendWaReceiptSuccess.onclick = async () => {
@@ -578,24 +579,13 @@ function initPosEvents() {
         }
       }
 
-      // Bersihkan karakter non-angka dan format standar internasional 62
-      let clean = String(rawPhone || "").replace(/\D/g, "");
-      if (clean.startsWith("0")) {
-        clean = "62" + clean.slice(1);
-      } else if (clean.startsWith("8")) {
-        clean = "62" + clean;
-      }
+      let clean = normalizePhoneNumber(rawPhone);
 
-      // 3. Hanya tampilkan popup dialog jika transaksi benar-benar non-member atau nomor tidak valid
+      // 3. Hanya tampilkan dialog jika transaksi benar-benar non-member atau nomor tidak valid
       if (!clean || clean.length < 9) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
-        clean = inp.replace(/\D/g, "");
-        if (clean.startsWith("0")) {
-          clean = "62" + clean.slice(1);
-        } else if (clean.startsWith("8")) {
-          clean = "62" + clean;
-        }
+        clean = normalizePhoneNumber(inp);
       }
 
       if (clean && clean.length >= 9) {
