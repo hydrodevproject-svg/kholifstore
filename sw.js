@@ -1,5 +1,5 @@
 // sw.js - Service Worker Kholif Store POS
-const CACHE_NAME = "kholif-pos-cache-v2026-v1";
+const CACHE_NAME = "kholif-pos-cache-v2026-v2";
 
 const APP_SHELL_ASSETS = [
   "./",
@@ -34,11 +34,17 @@ const APP_SHELL_ASSETS = [
   "./views/modals.html"
 ];
 
-// 1. Pemasangan Cache Awal
+// 1. Pemasangan Cache Awal (Aman dari kegagalan 404)
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of APP_SHELL_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (err) {
+          console.warn(`Gagal menyimpan cache untuk aset: ${asset}`, err);
+        }
+      }
     }).then(() => self.skipWaiting())
   );
 });
@@ -58,12 +64,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// 3. Strategi Intersepsi Permintaan Data (Network First dengan Fallback Cache)
+// 3. Strategi Network First dengan Fallback Cache
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Abaikan request Firebase, Google APIs, atau selain metode GET agar sinkronisasi Firestore tetap berjalan murni
   if (
     req.method !== "GET" ||
     url.hostname.includes("firestore.googleapis.com") ||
