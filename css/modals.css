@@ -2,7 +2,7 @@
 .login-overlay {
   position: fixed;
   inset: 0;
-  background: #f8fafc !important; /* Solid 100% agar tidak tembus pandang atau memicu garis atas */
+  background: #f8fafc !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,7 +17,7 @@
 
 .login-wrapper {
   width: 100%;
-  max-width: 320px; /* Ramping agar proporsional di layar HP */
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +33,7 @@
 }
 
 .login-logo-outside .brand-img-large {
-  height: 90px !important; /* Disesuaikan agar pas di layar Android */
+  height: 90px !important;
   max-height: 90px !important;
   width: auto !important;
   max-width: 190px !important;
@@ -271,6 +271,12 @@
   padding: 16px;
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-lg);
+  animation: modal-pop 0.2s var(--spring);
+}
+
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .modal-box.modal-sm {
@@ -645,7 +651,7 @@
   padding-bottom: 4px;
 }
 
-/* ================= PEMBAYARAN & NOTA ================= */
+/* ================= PEMBAYARAN & NOTA SUKSES ================= */
 .total-big-wrap {
   text-align: center;
   margin-bottom: 12px;
@@ -687,6 +693,12 @@
   font-weight: 800;
   text-align: center;
   background: #f8fafc;
+  outline: none;
+}
+
+.pay-input-group input:focus {
+  background: var(--surface);
+  border-color: var(--brand-primary);
 }
 
 .change-info-card {
@@ -699,6 +711,72 @@
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
   font-size: 12px;
+}
+
+.change-info-card strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Animasi & Header Sukses */
+.success-header-anim {
+  text-align: center;
+  padding: 6px 0 12px;
+}
+
+.success-icon-wrap {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 8px;
+}
+
+.checkmark-svg {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: var(--brand-success);
+  stroke-miterlimit: 10;
+}
+
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2.5;
+  stroke-miterlimit: 10;
+  stroke: #e2e8f0;
+  animation: stroke-circle 0.5s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke-check 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.35s forwards;
+}
+
+@keyframes stroke-circle {
+  100% { stroke-dashoffset: 0; stroke: var(--brand-success); }
+}
+
+@keyframes stroke-check {
+  100% { stroke-dashoffset: 0; }
+}
+
+.success-header-anim h3 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.success-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-family: monospace;
 }
 
 .receipt-card-preview {
@@ -720,10 +798,24 @@
   color: var(--text-secondary);
 }
 
+.receipt-row strong {
+  color: var(--text-primary);
+}
+
 .receipt-divider {
   height: 1px;
   border-top: 1px dashed #cbd5e1;
   margin: 3px 0;
+}
+
+.receipt-highlight {
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.receipt-highlight strong {
+  font-size: 14.5px;
+  font-weight: 800;
 }
 
 .receipt-action-buttons {
