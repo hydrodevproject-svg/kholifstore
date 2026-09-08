@@ -5,10 +5,43 @@ import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { renderAllMemberData } from "./members.js";
 
+let reportsCurrentPage = 1;
+const REPORTS_PAGE_SIZE = 20;
+
 export function initReportsModule() {
   const reportSearch = document.getElementById("reportSearch");
   if (reportSearch) {
-    reportSearch.addEventListener("input", debounce(() => renderReports(), 80));
+    reportSearch.addEventListener("input", debounce(() => {
+      reportsCurrentPage = 1;
+      renderReports();
+    }, 80));
+  }
+
+  // Event Delegation Terpusat untuk Tombol Edit & Hapus Transaksi
+  const tbody = document.getElementById("reportsTableBody");
+  if (tbody) {
+    tbody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest(".btn-edit-trx");
+      if (editBtn) {
+        const id = editBtn.getAttribute("data-id");
+        const trx = state.salesTransactions.find((t) => t.id === id);
+        if (trx) openEditTrxPage(trx);
+        return;
+      }
+
+      const delBtn = e.target.closest(".btn-del-trx");
+      if (delBtn) {
+        const id = delBtn.getAttribute("data-id");
+        const ok = await showThemedConfirm("Hapus Transaksi", `Yakin ingin menghapus transaksi "${id}"?`);
+        if (ok) {
+          state.salesTransactions = state.salesTransactions.filter((t) => t.id !== id);
+          persistSales();
+          renderReports();
+          renderAllMemberData();
+          showScanToast(`Transaksi ${id} dihapus`);
+        }
+      }
+    });
   }
 
   const btnBackEditTrxPage = document.getElementById("btnBackEditTrxPage");
@@ -39,7 +72,6 @@ export function initReportsModule() {
     };
   }
 
-  // Klik Best Seller membuka analisis barang laris & peringatan restock
   const cardBestSellerClickable = document.getElementById("cardBestSellerClickable");
   if (cardBestSellerClickable) {
     cardBestSellerClickable.onclick = () => openFastMovingPage();
@@ -97,7 +129,6 @@ export function renderReports() {
   const suksesTrx = state.salesTransactions.filter((t) => t.status !== "Dibatalkan");
   const totalRev = suksesTrx.reduce((acc, t) => acc + t.total, 0);
 
-  // Kalkulasi Keuntungan Kotor: Omzet - Total HPP barang yang terjual
   let totalHppSold = 0;
   const productSalesMap = {};
 
@@ -115,15 +146,12 @@ export function renderReports() {
 
   const grossProfit = Math.max(0, totalRev - totalHppSold);
 
-  // Kalkulasi Biaya Operasional Penjualan dari Arus Kas
   const totalOperationalExpense = (state.financeDB?.logs || [])
     .filter((l) => l.type === "Biaya Operasional")
     .reduce((acc, l) => acc + Number(l.amount || 0), 0);
 
-  // Keuntungan Bersih: Keuntungan Kotor - Biaya Operasional Penjualan
   const netProfit = grossProfit - totalOperationalExpense;
 
-  // Temukan barang terlaris
   let bestItemName = "-";
   let maxQty = 0;
   Object.keys(productSalesMap).forEach((name) => {
@@ -146,14 +174,30 @@ export function renderReports() {
   }
   if (bestEl) bestEl.textContent = bestItemName !== "-" ? `${bestItemName} (${maxQty}x)` : "-";
 
-  const canModify = state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "master_it");
+  const totalItems = filtered.length;
+  let paginationContainer = document.getElementById("reportsPagination");
+  if (!paginationContainer) {
+    paginationContainer = document.createElement("div");
+    paginationContainer.id = "reportsPagination";
+    tbody.closest(".threads-card")?.appendChild(paginationContainer);
+  }
 
-  if (filtered.length === 0) {
+  if (totalItems === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary); padding:16px;">Tidak ada riwayat transaksi penjualan.</td></tr>`;
+    if (paginationContainer) paginationContainer.innerHTML = "";
     return;
   }
 
-  tbody.innerHTML = filtered.map((trx) => {
+  const totalPages = Math.ceil(totalItems / REPORTS_PAGE_SIZE) || 1;
+  if (reportsCurrentPage > totalPages) reportsCurrentPage = totalPages;
+  if (reportsCurrentPage < 1) reportsCurrentPage = 1;
+
+  const startIndex = (reportsCurrentPage - 1) * REPORTS_PAGE_SIZE;
+  const pageItems = filtered.slice(startIndex, startIndex + REPORTS_PAGE_SIZE);
+
+  const canModify = state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "master_it");
+
+  tbody.innerHTML = pageItems.map((trx) => {
     const statusVal = trx.status || "Sukses";
     const statusClass = statusVal === "Dibatalkan" ? "badge-status-dibatalkan" : "badge-status-sukses";
     return `
@@ -168,33 +212,43 @@ export function renderReports() {
         <td><span class="badge-mono ${statusClass}">${statusVal}</span></td>
         <td style="text-align: right;">
           ${canModify ? `
-            <button class="btn-table-action btn-edit-trx" data-id="${trx.id}">Edit</button>
-            <button class="btn-table-action btn-delete btn-del-trx" data-id="${trx.id}">Hapus</button>
+            <button type="button" class="btn-table-action btn-edit-trx" data-id="${trx.id}">Edit</button>
+            <button type="button" class="btn-table-action btn-delete btn-del-trx" data-id="${trx.id}">Hapus</button>
           ` : `<span class="badge-mono">Lihat</span>`}
         </td>
       </tr>
     `;
   }).join("");
 
-  if (canModify) {
-    tbody.querySelectorAll(".btn-edit-trx").forEach((btn) => {
-      btn.onclick = () => {
-        const trx = state.salesTransactions.find((t) => t.id === btn.getAttribute("data-id"));
-        if (trx) openEditTrxPage(trx);
-      };
+  if (paginationContainer) {
+    const startNum = startIndex + 1;
+    const endNum = Math.min(startIndex + REPORTS_PAGE_SIZE, totalItems);
+
+    paginationContainer.innerHTML = `
+      <div class="pagination-bar">
+        <span>Menampilkan <strong>${startNum} - ${endNum}</strong> dari <strong>${totalItems}</strong> transaksi</span>
+        <div class="pagination-controls">
+          <button type="button" class="btn-page-nav" id="btnReportsPrev" ${reportsCurrentPage <= 1 ? "disabled" : ""}>Sebelumnya</button>
+          <span style="font-weight:700; color:var(--text-primary); padding: 0 4px;">${reportsCurrentPage} / ${totalPages}</span>
+          <button type="button" class="btn-page-nav" id="btnReportsNext" ${reportsCurrentPage >= totalPages ? "disabled" : ""}>Selanjutnya</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("btnReportsPrev")?.addEventListener("click", () => {
+      if (reportsCurrentPage > 1) {
+        reportsCurrentPage--;
+        renderReports();
+        document.getElementById("view-reports")?.scrollTo({ top: 0, behavior: "smooth" });
+      }
     });
-    tbody.querySelectorAll(".btn-del-trx").forEach((btn) => {
-      btn.onclick = async () => {
-        const id = btn.getAttribute("data-id");
-        const ok = await showThemedConfirm("Hapus Transaksi", `Yakin ingin menghapus transaksi "${id}"?`);
-        if (ok) {
-          state.salesTransactions = state.salesTransactions.filter((t) => t.id !== id);
-          persistSales();
-          renderReports();
-          renderAllMemberData();
-          showScanToast(`Transaksi ${id} dihapus`);
-        }
-      };
+
+    document.getElementById("btnReportsNext")?.addEventListener("click", () => {
+      if (reportsCurrentPage < totalPages) {
+        reportsCurrentPage++;
+        renderReports();
+        document.getElementById("view-reports")?.scrollTo({ top: 0, behavior: "smooth" });
+      }
     });
   }
 }
@@ -220,7 +274,7 @@ function openFastMovingPage() {
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-secondary); padding: 14px;">Belum ada data transaksi barang.</td></tr>`;
   } else {
-    tbody.innerHTML = list.map((item) => {
+    tbody.innerHTML = list.slice(0, 50).map((item) => {
       const isUrgent = item.stock <= 15;
       return `
         <tr>
