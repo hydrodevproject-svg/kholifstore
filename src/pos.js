@@ -9,6 +9,9 @@ import { renderAllMemberData } from "./members.js";
 import { renderReports } from "./reports.js";
 import { renderFinanceDashboard } from "./finance.js";
 
+// Mengunci objek transaksi terakhir agar tidak terpengaruh re-sorting array
+let lastCompletedTrx = null;
+
 export function initPosModule() {
   initPosEvents();
   renderCategories();
@@ -289,7 +292,8 @@ export function attachMember(member) {
   const posMemberMeta = document.getElementById("posMemberMeta");
   const btnClearMemberPos = document.getElementById("btnClearMemberPos");
 
-  if (posMemberName) posMemberName.textContent = `${member.name} (${member.phone})`;
+  const phoneDisplay = member.phone || member.wa || "";
+  if (posMemberName) posMemberName.textContent = `${member.name} (${phoneDisplay})`;
   if (posMemberMeta) posMemberMeta.textContent = `${member.tier} • ${member.points} Poin`;
   if (btnClearMemberPos) btnClearMemberPos.classList.remove("hidden");
 
@@ -439,7 +443,6 @@ function initPosEvents() {
         }
       }
 
-      // Format Hari, Tanggal, dan Jam Transaksi
       const now = new Date();
       const dayName = now.toLocaleDateString("id-ID", { weekday: "long" });
       const dateFormatted = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
@@ -460,13 +463,20 @@ function initPosEvents() {
         appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
       }
 
-      // Pastikan data member tersimpan secara utuh dalam transaksi
+      // Pastikan data nomor telepon member terkunci dengan lengkap
+      const attachedMemberClone = state.currentAttachedMember ? {
+        id: state.currentAttachedMember.id,
+        name: state.currentAttachedMember.name,
+        phone: state.currentAttachedMember.phone || state.currentAttachedMember.wa || state.currentAttachedMember.telepon || "",
+        tier: state.currentAttachedMember.tier || ""
+      } : null;
+
       const newTrx = {
         id: trxId,
         date: `${dayName}, ${dateFormatted}`,
         time: fullDateTimeStr,
         cashier: state.currentUser ? state.currentUser.name : "Kasir",
-        member: state.currentAttachedMember ? { ...state.currentAttachedMember } : null,
+        member: attachedMemberClone,
         total: grandTotalNum,
         discount: appliedDiscount,
         paymentMethod,
@@ -474,10 +484,12 @@ function initPosEvents() {
         status: "Sukses"
       };
 
+      // Kunci referensi transaksi ini agar tidak tertukar
+      lastCompletedTrx = newTrx;
+
       state.salesTransactions.unshift(newTrx);
       persistSales();
 
-      // Sinkronisasi Arus Kas Keuangan Toko jika pembayaran tunai / non-piutang
       if (paymentMethod !== "Piutang / Kasbon") {
         if (!state.financeDB) state.financeDB = { cashBalance: 0, logs: [] };
         state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
@@ -539,44 +551,42 @@ function initPosEvents() {
   const btnPrintReceiptSuccess = document.getElementById("btnPrintReceiptSuccess");
   if (btnPrintReceiptSuccess) {
     btnPrintReceiptSuccess.onclick = () => {
-      if (state.salesTransactions[0]) printThermalReceipt(state.salesTransactions[0]);
+      const trx = lastCompletedTrx || state.salesTransactions[0];
+      if (trx) printThermalReceipt(trx);
     };
   }
 
-  // Pengiriman Nota WA langsung tanpa meminta ulang jika member sudah terdaftar
+  // Pengiriman Nota WA langsung tanpa memunculkan prompt jika nomor member tersedia
   const btnSendWaReceiptSuccess = document.getElementById("btnSendWaReceiptSuccess");
   if (btnSendWaReceiptSuccess) {
     btnSendWaReceiptSuccess.onclick = async () => {
-      const trx = (state.salesTransactions && state.salesTransactions.length > 0) 
-        ? state.salesTransactions[0] 
-        : null;
-      
+      const trx = lastCompletedTrx || (state.salesTransactions && state.salesTransactions.length > 0 ? state.salesTransactions[0] : null);
       if (!trx) return;
 
-      let targetPhone = "";
+      let rawPhone = "";
 
-      // 1. Ekstraksi langsung dari transaksi
+      // 1. Ambil nomor dari objek member transaksi
       if (trx.member) {
-        targetPhone = trx.member.phone || trx.member.wa || trx.member.telepon || "";
+        rawPhone = trx.member.phone || trx.member.wa || trx.member.telepon || "";
       }
 
-      // 2. Fallback: Cocokkan ke database member jika nomor tidak tersalin di objek transaksi
-      if (!targetPhone && trx.member && trx.member.name) {
-        const found = state.membersDB.find((m) => m.name.toLowerCase().trim() === trx.member.name.toLowerCase().trim());
+      // 2. Fallback: Cocokkan ke database member jika properti nomor di transaksi kosong
+      if (!rawPhone && trx.member && trx.member.name) {
+        const found = state.membersDB.find((m) => m.name.trim().toLowerCase() === trx.member.name.trim().toLowerCase());
         if (found) {
-          targetPhone = found.phone || found.wa || "";
+          rawPhone = found.phone || found.wa || found.telepon || "";
         }
       }
 
-      // Format nomor ke format internasional (62)
-      let clean = String(targetPhone || "").replace(/\D/g, "");
+      // Bersihkan karakter non-angka dan format standar internasional 62
+      let clean = String(rawPhone || "").replace(/\D/g, "");
       if (clean.startsWith("0")) {
         clean = "62" + clean.slice(1);
       } else if (clean.startsWith("8")) {
         clean = "62" + clean;
       }
 
-      // 3. Hanya munculkan dialog prompt jika nomor kosong atau bukan transaksi member
+      // 3. Hanya tampilkan popup dialog jika transaksi benar-benar non-member atau nomor tidak valid
       if (!clean || clean.length < 9) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
@@ -588,7 +598,7 @@ function initPosEvents() {
         }
       }
 
-      if (clean) {
+      if (clean && clean.length >= 9) {
         window.open(`https://wa.me/${clean}?text=${generateWhatsAppText(trx)}`, "_blank");
       }
     };
@@ -705,7 +715,10 @@ function renderPosMemberPicker(q = "") {
   list.innerHTML = "";
 
   const filtered = state.membersDB.filter(
-    (m) => m.name.toLowerCase().includes(q) || m.phone.includes(q) || m.id.toLowerCase().includes(q)
+    (m) => {
+      const p = m.phone || m.wa || "";
+      return m.name.toLowerCase().includes(q) || p.includes(q) || (m.id && m.id.toLowerCase().includes(q));
+    }
   );
 
   if (filtered.length === 0) {
@@ -721,10 +734,11 @@ function renderPosMemberPicker(q = "") {
   filtered.forEach((m) => {
     const card = document.createElement("div");
     card.className = "member-picker-card";
+    const phoneDisplay = m.phone || m.wa || "-";
     card.innerHTML = `
       <div>
         <strong>${m.name}</strong><br>
-        <small style="color:var(--text-secondary);">${m.phone} • ${m.tier}</small>
+        <small style="color:var(--text-secondary);">${phoneDisplay} • ${m.tier}</small>
       </div>
       <span class="badge-mono">${m.points} Poin</span>
     `;
