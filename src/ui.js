@@ -14,6 +14,7 @@ export async function loadViews() {
         "views/purchases.html",
         "views/inventory.html",
         "views/reports.html",
+        "views/finance.html",
         "views/setting.html"
       ]
     },
@@ -197,7 +198,6 @@ export function getActiveTopScreen() {
   const paperWidthModal = document.getElementById("paperWidthModal");
   if (paperWidthModal && paperWidthModal.classList.contains("open")) return "paperWidthModal";
 
-  // Modal Rincian Barang Masuk
   const purchItemDetailModal = document.getElementById("purchItemDetailModal");
   if (purchItemDetailModal && purchItemDetailModal.classList.contains("open")) return "purchItemDetailModal";
 
@@ -206,6 +206,9 @@ export function getActiveTopScreen() {
 
   const discountModal = document.getElementById("discountModal");
   if (discountModal && discountModal.classList.contains("open")) return "discountModal";
+
+  const opnamePicker = document.getElementById("opnameProductPickerScreen");
+  if (opnamePicker && opnamePicker.classList.contains("active")) return "opnameProductPickerScreen";
 
   const purchProductPickerScreen = document.getElementById("purchProductPickerScreen");
   if (purchProductPickerScreen && purchProductPickerScreen.classList.contains("active")) return "purchProductPickerScreen";
@@ -222,11 +225,14 @@ export function getActiveTopScreen() {
   const editPurchaseModal = document.getElementById("editPurchaseModal");
   if (editPurchaseModal && editPurchaseModal.classList.contains("open")) return "editPurchaseModal";
 
-  const stockOpnameModal = document.getElementById("stockOpnameModal");
-  if (stockOpnameModal && stockOpnameModal.classList.contains("open")) return "stockOpnameModal";
+  const stockOpnamePage = document.getElementById("stockOpnamePageScreen");
+  if (stockOpnamePage && stockOpnamePage.classList.contains("active")) return "stockOpnamePageScreen";
 
   const categoryPageScreen = document.getElementById("categoryPageScreen");
   if (categoryPageScreen && categoryPageScreen.classList.contains("active")) return "categoryPage";
+
+  const fastMovingScreen = document.getElementById("fastMovingPageScreen");
+  if (fastMovingScreen && fastMovingScreen.classList.contains("active")) return "fastMovingScreen";
 
   const editTrxPageScreen = document.getElementById("editTrxPageScreen");
   if (editTrxPageScreen && editTrxPageScreen.classList.contains("active")) return "editTrxPage";
@@ -246,6 +252,7 @@ export function getActiveTopScreen() {
   if (state.activeMasterItSubMenuId !== null) return "masterItSub";
   if (state.activeMemberSubMenuId !== null) return "memberSub";
   if (state.activeInvSubMenuId !== null) return "invSub";
+  if (state.activeFinSubMenuId !== null) return "finSub";
   if (state.activeSettingsSubMenuId !== null) return "settingsSub";
 
   if (state.currentViewId !== "view-pos") return "subView";
@@ -277,6 +284,9 @@ export function handleDeviceBackNavigation(callbacks = {}) {
     case "discountModal":
       document.getElementById("discountModal")?.classList.remove("open");
       break;
+    case "opnameProductPickerScreen":
+      document.getElementById("opnameProductPickerScreen")?.classList.remove("active");
+      break;
     case "purchProductPickerScreen":
       document.getElementById("purchProductPickerScreen")?.classList.remove("active");
       break;
@@ -292,11 +302,14 @@ export function handleDeviceBackNavigation(callbacks = {}) {
     case "editPurchaseModal":
       document.getElementById("editPurchaseModal")?.classList.remove("open");
       break;
-    case "stockOpnameModal":
-      document.getElementById("stockOpnameModal")?.classList.remove("open");
+    case "stockOpnamePageScreen":
+      document.getElementById("stockOpnamePageScreen")?.classList.remove("active");
       break;
     case "categoryPage":
       document.getElementById("categoryPageScreen")?.classList.remove("active");
+      break;
+    case "fastMovingScreen":
+      document.getElementById("fastMovingPageScreen")?.classList.remove("active");
       break;
     case "editTrxPage":
       document.getElementById("editTrxPageScreen")?.classList.remove("active");
@@ -322,6 +335,9 @@ export function handleDeviceBackNavigation(callbacks = {}) {
       break;
     case "invSub":
       if (callbacks.closeInvSubMenu) callbacks.closeInvSubMenu();
+      break;
+    case "finSub":
+      if (callbacks.closeFinanceSubMenu) callbacks.closeFinanceSubMenu();
       break;
     case "settingsSub":
       if (callbacks.closeSettingsSubMenu) callbacks.closeSettingsSubMenu();
