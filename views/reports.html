@@ -1,29 +1,39 @@
-<!-- VIEW: LAPORAN PENJUALAN -->
+<!-- VIEW: LAPORAN PENJUALAN & LABA RUGI -->
 <section id="view-reports" class="app-view">
   <div class="threads-container">
     <div class="view-action-header">
       <div>
-        <h2>Laporan Penjualan</h2>
-        <p>Performa ringkas transaksi dan audit kasir.</p>
+        <h2>Laporan &amp; Performa Bisnis</h2>
+        <p>Audit omzet, kalkulasi laba kotor, beban operasional, dan laba bersih.</p>
       </div>
     </div>
 
+    <!-- KARTU STATISTIK 4 MATRIKS -->
     <div class="report-stats-grid">
       <div class="stat-card">
-        <small>Total Omzet</small>
+        <small>Total Omzet Penjualan</small>
         <h3 id="statTotalRevenue">Rp 0</h3>
       </div>
       <div class="stat-card">
-        <small>Transaksi Sukses</small>
-        <h3 id="statTotalTransactions">0</h3>
+        <small>Keuntungan Kotor</small>
+        <h3 id="statGrossProfit" style="color: var(--brand-accent);">Rp 0</h3>
       </div>
       <div class="stat-card">
-        <small>Paling Laris</small>
-        <h3 id="statBestSeller">-</h3>
+        <small>Keuntungan Bersih (Net)</small>
+        <h3 id="statNetProfit" style="color: #16a34a;">Rp 0</h3>
+      </div>
+      <div class="stat-card" id="cardBestSellerClickable" style="cursor: pointer;" title="Klik untuk cek analisis barang fast-moving">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <small>Paling Laris (Klik Detail)</small>
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px; color:var(--brand-accent);">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <h3 id="statBestSeller" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</h3>
       </div>
     </div>
 
-    <div class="threads-card" style="margin-top: 16px;">
+    <div class="threads-card" style="margin-top: 14px;">
       <div class="table-filter-bar">
         <input type="text" id="reportSearch" placeholder="Cari no. struk, kasir, member, nominal..." autocomplete="off" />
         <div class="inventory-stat-summary">Data: <strong id="repCountTotal">0</strong></div>
@@ -47,10 +57,46 @@
   </div>
 </section>
 
+<!-- LAMAN PENUH: DAFTAR BARANG FAST-MOVING & RESTOCK ALERT -->
+<div class="full-page-screen" id="fastMovingPageScreen">
+  <div class="page-screen-header">
+    <button class="btn-back-screen" id="btnBackFastMovingPage" type="button">
+      <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Laporan</span>
+    </button>
+    <h3>Barang Laris &amp; Mutasi Cepat</h3>
+    <div style="width: 32px;"></div>
+  </div>
+
+  <div class="page-screen-body">
+    <div class="threads-card" style="margin-bottom: 12px; background: #fffbeb !important; border-color: #fde68a;">
+      <strong style="font-size: 12px; color: #92400e; display: block; margin-bottom: 2px;">Peringatan Restock Otomatis</strong>
+      <span style="font-size: 10.5px; color: #b45309;">Barang di bawah ini memiliki perputaran tercepat. Pastikan stok fisik segera ditambah jika mendekati batas minimum (≤ 15 pcs).</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Barang</th>
+            <th>Terjual</th>
+            <th>Sisa Stok</th>
+            <th>Status Restock</th>
+          </tr>
+        </thead>
+        <tbody id="fastMovingTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- LAMAN PENUH: EDIT & RINCIAN TRANSAKSI -->
 <div class="full-page-screen" id="editTrxPageScreen">
   <div class="page-screen-header">
-    <button class="btn-back-screen" id="btnBackEditTrxPage">
+    <button class="btn-back-screen" id="btnBackEditTrxPage" type="button">
       <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="19" y1="12" x2="5" y2="12"></line>
         <polyline points="12 19 5 12 12 5"></polyline>
