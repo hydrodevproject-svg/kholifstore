@@ -1,5 +1,5 @@
 // src/pos.js
-import { state, persistProducts, persistSales, persistMembers } from "./state.js";
+import { state, persistProducts, persistSales, persistMembers, persistFinance } from "./state.js";
 import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, playCashChime } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
@@ -7,6 +7,7 @@ import { refreshProductPriceFromBatches } from "./purchases.js";
 import { renderAllInventoryData } from "./inventory.js";
 import { renderAllMemberData } from "./members.js";
 import { renderReports } from "./reports.js";
+import { renderFinanceDashboard } from "./finance.js";
 
 export function initPosModule() {
   initPosEvents();
@@ -474,6 +475,24 @@ function initPosEvents() {
 
       state.salesTransactions.unshift(newTrx);
       persistSales();
+
+      // Sinkronisasi Arus Kas Keuangan Toko jika pembayaran tunai / non-piutang
+      if (paymentMethod !== "Piutang / Kasbon") {
+        if (!state.financeDB) state.financeDB = { cashBalance: 0, logs: [] };
+        state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
+        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+        
+        state.financeDB.logs.unshift({
+          id: `FIN-${Date.now()}`,
+          time: fullDateTimeStr,
+          type: "Penjualan Kasir",
+          amount: grandTotalNum,
+          note: `Penerimaan POS: ${trxId} (${paymentMethod})`,
+          admin: state.currentUser ? state.currentUser.name : "Kasir"
+        });
+        persistFinance();
+        renderFinanceDashboard();
+      }
 
       const succTrxInfo = document.getElementById("succTrxInfo");
       const succCashierMember = document.getElementById("succCashierMember");
