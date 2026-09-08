@@ -1,5 +1,5 @@
 // sw.js - Service Worker Kholif Store POS
-const CACHE_NAME = "kholif-pos-cache-v2026-v4";
+const CACHE_NAME = "kholif-pos-cache-v2026-v5";
 
 const APP_SHELL_ASSETS = [
   "./",
@@ -67,7 +67,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// 3. Strategi Network First dengan Fallback Cache
+// 3. Strategi Network First dengan Fallback Cache (ignoreSearch: true)
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -95,7 +95,7 @@ self.addEventListener("fetch", (event) => {
         return networkResponse;
       })
       .catch(() => {
-        return caches.match(req).then((cachedResponse) => {
+        return caches.match(req, { ignoreSearch: true }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
