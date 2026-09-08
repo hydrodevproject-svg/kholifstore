@@ -1,7 +1,7 @@
 // src/members.js
 import { state, persistMembers } from "./state.js";
 import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
-import { showScanToast, debounce } from "./utils.js";
+import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { generateWhatsAppText } from "./printer.js";
 
 export function initMembersModule() {
@@ -201,13 +201,17 @@ export function renderMemberOrders() {
     btn.onclick = async () => {
       const trx = state.salesTransactions.find((x) => x.id === btn.getAttribute("data-id"));
       if (!trx) return;
-      let targetPhone = trx.member?.phone ? trx.member.phone.replace(/^0/, "62").replace(/\D/g, "") : "";
-      if (!targetPhone) {
+      
+      let targetPhone = normalizePhoneNumber(trx.member?.phone || trx.member?.wa || "");
+      if (!targetPhone || targetPhone.length < 9) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
-        targetPhone = inp.replace(/^0/, "62").replace(/\D/g, "");
+        targetPhone = normalizePhoneNumber(inp);
       }
-      window.open(`https://wa.me/${targetPhone}?text=${generateWhatsAppText(trx)}`, "_blank");
+      
+      if (targetPhone && targetPhone.length >= 9) {
+        window.open(`https://wa.me/${targetPhone}?text=${generateWhatsAppText(trx)}`, "_blank");
+      }
     };
   });
 }
