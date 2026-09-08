@@ -4,9 +4,9 @@ import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui
 import { showScanToast, debounce } from "./utils.js";
 import { renderAllInventoryData } from "./inventory.js";
 
-// Penampung sementara banyak barang dalam satu faktur
 let tempPurchaseItems = [];
 let activeSelectedProduct = null;
+const MAX_PURCH_PICKER_RENDER = 40;
 
 export function initPurchasesModule() {
   document.querySelectorAll("[data-purchase-tab]").forEach((btn) => {
@@ -18,6 +18,75 @@ export function initPurchasesModule() {
       if (target) target.classList.add("active");
     };
   });
+
+  // Event Delegation: Edit Faktur Pembelian
+  const purchTbody = document.getElementById("purchaseTableBody");
+  if (purchTbody) {
+    purchTbody.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-edit-purch");
+      if (!btn) return;
+      const purch = state.purchasesDB.find((x) => x.id === btn.getAttribute("data-id"));
+      if (purch) openEditPurchaseModal(purch);
+    });
+  }
+
+  // Event Delegation: Pelunasan Hutang Supplier
+  const debtTbody = document.getElementById("supplierDebtTableBody");
+  if (debtTbody) {
+    debtTbody.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-pay-supplier-debt");
+      if (!btn) return;
+      const debt = state.supplierDebtsDB.find((x) => x.id === btn.getAttribute("data-id"));
+      if (!debt) return;
+
+      const inputVal = await showThemedPrompt(
+        "Pelunasan Hutang Supplier",
+        `Sisa hutang kepada ${debt.supplier}: Rp ${debt.remainingDebt.toLocaleString("id-ID")}\nMasukkan nominal yang dibayar:`,
+        debt.remainingDebt
+      );
+      const paid = parseInt(inputVal, 10);
+      if (paid > 0) {
+        debt.remainingDebt = Math.max(0, debt.remainingDebt - paid);
+        if (debt.remainingDebt === 0) {
+          const matched = state.purchasesDB.find((p) => p.nota === debt.nota);
+          if (matched) matched.paidStatus = "Lunas";
+          persistPurchases();
+          renderPurchasesTable();
+        }
+        persistSupplierDebts();
+        renderSupplierDebtsTable();
+        showScanToast("Pembayaran hutang dicatat");
+      }
+    });
+  }
+
+  // Event Delegation: Hapus Barang dari Draf Faktur
+  const itemsContainer = document.getElementById("purchItemsListContainer");
+  if (itemsContainer) {
+    itemsContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-del-purch-item");
+      if (!btn) return;
+      const idx = Number(btn.getAttribute("data-idx"));
+      tempPurchaseItems.splice(idx, 1);
+      renderPurchaseItemsList();
+      showScanToast("Barang dihapus dari faktur");
+    });
+  }
+
+  // Event Delegation: Pemilih Barang Masuk (Picker)
+  const pickerOptionsList = document.getElementById("purchProductOptionsList");
+  if (pickerOptionsList) {
+    pickerOptionsList.addEventListener("click", (e) => {
+      const card = e.target.closest(".cat-select-card");
+      if (!card) return;
+      const pId = Number(card.getAttribute("data-product-id"));
+      const prod = state.productsDB.find((p) => p && p.id === pId);
+      if (prod) {
+        activeSelectedProduct = prod;
+        openPurchItemDetailModal(prod);
+      }
+    });
+  }
 
   initAddPurchaseEvents();
   initEditPurchaseEvents();
@@ -61,17 +130,10 @@ export function renderPurchasesTable() {
       <td><strong>Rp ${p.sellPrice.toLocaleString("id-ID")}</strong></td>
       <td><span class="badge-mono ${p.paidStatus === 'Lunas' ? 'badge-exp-safe' : 'badge-exp-danger'}">${p.paidStatus}</span></td>
       <td style="text-align: right;">
-        <button class="btn-table-action btn-edit-purch" data-id="${p.id}">Edit</button>
+        <button type="button" class="btn-table-action btn-edit-purch" data-id="${p.id}">Edit</button>
       </td>
     </tr>
   `).join("");
-
-  tbody.querySelectorAll(".btn-edit-purch").forEach((btn) => {
-    btn.onclick = () => {
-      const purch = state.purchasesDB.find((x) => x.id === btn.getAttribute("data-id"));
-      if (purch) openEditPurchaseModal(purch);
-    };
-  });
 }
 
 export function renderSupplierDebtsTable() {
@@ -91,35 +153,10 @@ export function renderSupplierDebtsTable() {
       <td>Rp ${d.total.toLocaleString("id-ID")}</td>
       <td><strong style="color:var(--brand-danger);">Rp ${d.remainingDebt.toLocaleString("id-ID")}</strong></td>
       <td style="text-align: right;">
-        <button class="btn-table-action btn-pay-supplier-debt" data-id="${d.id}">Bayar Hutang</button>
+        <button type="button" class="btn-table-action btn-pay-supplier-debt" data-id="${d.id}">Bayar Hutang</button>
       </td>
     </tr>
   `).join("");
-
-  tbody.querySelectorAll(".btn-pay-supplier-debt").forEach((btn) => {
-    btn.onclick = async () => {
-      const debt = state.supplierDebtsDB.find((x) => x.id === btn.getAttribute("data-id"));
-      if (!debt) return;
-      const inputVal = await showThemedPrompt(
-        "Pelunasan Hutang Supplier",
-        `Sisa hutang kepada ${debt.supplier}: Rp ${debt.remainingDebt.toLocaleString("id-ID")}\nMasukkan nominal yang dibayar:`,
-        debt.remainingDebt
-      );
-      const paid = parseInt(inputVal, 10);
-      if (paid > 0) {
-        debt.remainingDebt = Math.max(0, debt.remainingDebt - paid);
-        if (debt.remainingDebt === 0) {
-          const matched = state.purchasesDB.find((p) => p.nota === debt.nota);
-          if (matched) matched.paidStatus = "Lunas";
-          persistPurchases();
-          renderPurchasesTable();
-        }
-        persistSupplierDebts();
-        renderSupplierDebtsTable();
-        showScanToast("Pembayaran hutang dicatat");
-      }
-    };
-  });
 }
 
 function initAddPurchaseEvents() {
@@ -266,7 +303,7 @@ function renderPurchaseItemsList() {
 
   if (tempPurchaseItems.length === 0) {
     container.innerHTML = `
-      <div class="empty-state" style="padding: 24px 12px;">
+      <div class="empty-state" id="purchEmptyState" style="padding: 24px 12px;">
         <p>Belum ada barang ditambahkan</p>
         <span>Sentuh tombol <strong>+ Tambah Barang</strong> di atas untuk memasukkan barang ke faktur ini</span>
       </div>
@@ -301,15 +338,6 @@ function renderPurchaseItemsList() {
 
   if (totalQtyDisplay) totalQtyDisplay.textContent = `${totalQty} pcs`;
   if (grandTotalDisplay) grandTotalDisplay.textContent = `Rp ${grandTotal.toLocaleString("id-ID")}`;
-
-  container.querySelectorAll(".btn-del-purch-item").forEach((btn) => {
-    btn.onclick = () => {
-      const idx = Number(btn.getAttribute("data-idx"));
-      tempPurchaseItems.splice(idx, 1);
-      renderPurchaseItemsList();
-      showScanToast("Barang dihapus dari faktur");
-    };
-  });
 }
 
 function initPurchProductPickerEvents() {
@@ -339,14 +367,13 @@ function openPurchProductPicker() {
 function renderPurchProductOptions(q = "") {
   const container = document.getElementById("purchProductOptionsList");
   if (!container) return;
-  container.innerHTML = "";
 
   const filtered = state.productsDB.filter((p) => {
     if (!p) return false;
     const name = (p.name || "").toLowerCase();
     const barcode = (p.barcode || "").toLowerCase();
     const cat = (p.cat || "").toLowerCase();
-    return name.includes(q) || barcode.includes(q) || cat.includes(q);
+    return !q || name.includes(q) || barcode.includes(q) || cat.includes(q);
   });
 
   if (filtered.length === 0) {
@@ -359,9 +386,11 @@ function renderPurchProductOptions(q = "") {
     return;
   }
 
-  filtered.forEach((p) => {
+  const frag = document.createDocumentFragment();
+  filtered.slice(0, MAX_PURCH_PICKER_RENDER).forEach((p) => {
     const card = document.createElement("div");
     card.className = "cat-select-card";
+    card.setAttribute("data-product-id", p.id);
     card.innerHTML = `
       <div>
         <strong style="display:block; font-size:13.5px; color:var(--text-primary);">${p.name}</strong>
@@ -369,14 +398,11 @@ function renderPurchProductOptions(q = "") {
       </div>
       <div class="cat-radio-circle"></div>
     `;
-
-    card.onclick = () => {
-      activeSelectedProduct = p;
-      openPurchItemDetailModal(p);
-    };
-
-    container.appendChild(card);
+    frag.appendChild(card);
   });
+
+  container.innerHTML = "";
+  container.appendChild(frag);
 }
 
 function openPurchItemDetailModal(prod) {
@@ -500,7 +526,6 @@ function initEditPurchaseEvents() {
       const diffQty = newQty - oldQty;
       prod.stock += diffQty;
 
-      // Simpan referensi nomor nota lama sebelum nilai purch.nota ditimpa
       const oldNota = purch.nota;
       const newNota = document.getElementById("editPurchNota").value.trim();
       const supplierName = document.getElementById("editPurchSupplier").value.trim();
