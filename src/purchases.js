@@ -133,7 +133,6 @@ function initAddPurchaseEvents() {
   const btnAutoNota = document.getElementById("btnAutoGenerateNota");
   const inNota = document.getElementById("purchNota");
 
-  // Tombol generator nomor faktur otomatis
   if (btnAutoNota && inNota) {
     btnAutoNota.onclick = () => {
       inNota.value = generateAutoFaktur();
@@ -148,7 +147,6 @@ function initAddPurchaseEvents() {
       renderPurchaseItemsList();
       if (wrapPurchDueDate) wrapPurchDueDate.classList.add("hidden");
       
-      // Isi nomor faktur otomatis saat laman dibuka
       if (inNota) inNota.value = generateAutoFaktur();
 
       purchaseScreen?.classList.add("active");
@@ -437,7 +435,7 @@ function initPurchItemDetailEvents() {
       });
 
       modal?.classList.remove("open");
-      window.history.back(); // Menutup purchProductPickerScreen
+      window.history.back();
       renderPurchaseItemsList();
       showScanToast(`${activeSelectedProduct.name} (+${qty}) dimasukkan`);
       activeSelectedProduct = null;
@@ -502,9 +500,16 @@ function initEditPurchaseEvents() {
       const diffQty = newQty - oldQty;
       prod.stock += diffQty;
 
+      // Simpan referensi nomor nota lama sebelum nilai purch.nota ditimpa
+      const oldNota = purch.nota;
+      const newNota = document.getElementById("editPurchNota").value.trim();
+      const supplierName = document.getElementById("editPurchSupplier").value.trim();
+
       if (prod.batches) {
-        const batch = prod.batches.find((b) => b.nota === purch.nota);
+        const batch = prod.batches.find((b) => b.nota === oldNota);
         if (batch) {
+          batch.nota = newNota;
+          batch.supplier = supplierName;
           batch.qty = Math.max(0, batch.qty + diffQty);
           batch.buyPrice = costPrice;
           batch.sellPrice = sellPrice;
@@ -515,8 +520,8 @@ function initEditPurchaseEvents() {
       refreshProductPriceFromBatches(prod);
       persistProducts();
 
-      purch.nota = document.getElementById("editPurchNota").value.trim();
-      purch.supplier = document.getElementById("editPurchSupplier").value.trim();
+      purch.nota = newNota;
+      purch.supplier = supplierName;
       purch.qty = newQty;
       purch.costPrice = costPrice;
       purch.sellPrice = sellPrice;
@@ -527,21 +532,22 @@ function initEditPurchaseEvents() {
       purch.paidStatus = paymentMethod === "Hutang" ? "Belum Lunas" : "Lunas";
       persistPurchases();
 
-      const debt = state.supplierDebtsDB.find((d) => d.nota === purch.nota);
+      const debt = state.supplierDebtsDB.find((d) => d.nota === oldNota);
       if (debt) {
         if (paymentMethod === "Hutang") {
+          debt.nota = newNota;
           debt.supplier = purch.supplier;
           debt.total = purch.total;
           debt.remainingDebt = purch.total;
           debt.dueDate = dueDate;
         } else {
-          state.supplierDebtsDB = state.supplierDebtsDB.filter((d) => d.nota !== purch.nota);
+          state.supplierDebtsDB = state.supplierDebtsDB.filter((d) => d.nota !== oldNota);
         }
         persistSupplierDebts();
       } else if (paymentMethod === "Hutang") {
         state.supplierDebtsDB.unshift({
           id: `DEBT-${Date.now()}`,
-          nota: purch.nota,
+          nota: newNota,
           supplier: purch.supplier,
           total: purch.total,
           remainingDebt: purch.total,
