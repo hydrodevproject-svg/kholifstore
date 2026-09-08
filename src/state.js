@@ -61,7 +61,6 @@ export const state = {
   stockOpnamesDB: [],
   salesTransactions: [],
 
-  // Saldo Kas Fisik & Catatan Mutasi Keuangan
   financeDB: {
     cashBalance: 500000,
     logs: []
@@ -117,7 +116,9 @@ export async function loadInitialStateFromDB() {
     state.accountsDB = localAccounts;
   } else {
     const legacy = localStorage.getItem("kholif_pos_accounts");
-    if (legacy) state.accountsDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.accountsDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_accounts", state.accountsDB);
   }
 
@@ -126,7 +127,9 @@ export async function loadInitialStateFromDB() {
     state.membersDB = localMembers;
   } else {
     const legacy = localStorage.getItem("kholif_pos_members");
-    if (legacy) state.membersDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.membersDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_members", state.membersDB);
   }
 
@@ -135,7 +138,9 @@ export async function loadInitialStateFromDB() {
     state.categoriesDB = localCategories;
   } else {
     const legacy = localStorage.getItem("kholif_pos_categories");
-    if (legacy) state.categoriesDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.categoriesDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_categories", state.categoriesDB);
   }
 
@@ -144,7 +149,9 @@ export async function loadInitialStateFromDB() {
     state.productsDB = localProducts;
   } else {
     const legacy = localStorage.getItem("kholif_pos_products");
-    if (legacy) state.productsDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.productsDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_products", state.productsDB);
   }
 
@@ -153,7 +160,9 @@ export async function loadInitialStateFromDB() {
     state.purchasesDB = localPurchases;
   } else {
     const legacy = localStorage.getItem("kholif_pos_purchases");
-    if (legacy) state.purchasesDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.purchasesDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_purchases", state.purchasesDB);
   }
 
@@ -162,7 +171,9 @@ export async function loadInitialStateFromDB() {
     state.supplierDebtsDB = localDebts;
   } else {
     const legacy = localStorage.getItem("kholif_pos_supplier_debts");
-    if (legacy) state.supplierDebtsDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.supplierDebtsDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_supplier_debts", state.supplierDebtsDB);
   }
 
@@ -171,7 +182,9 @@ export async function loadInitialStateFromDB() {
     state.stockOpnamesDB = localOpnames;
   } else {
     const legacy = localStorage.getItem("kholif_pos_opnames");
-    if (legacy) state.stockOpnamesDB = JSON.parse(legacy);
+    if (legacy) {
+      try { state.stockOpnamesDB = JSON.parse(legacy); } catch (e) {}
+    }
     await setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
   }
 
@@ -200,8 +213,19 @@ export async function loadInitialStateFromDB() {
     await setLocalItem("kholif_pos_finance", state.financeDB);
   }
 
+  // Sinkronisasi konfigurasi printer dari IndexedDB dengan fallback ke localStorage
   const localPrinter = await getLocalItem("kholif_pos_printer_config");
-  if (localPrinter) state.printerConfig = localPrinter;
+  if (localPrinter && typeof localPrinter === "object") {
+    state.printerConfig = localPrinter;
+  } else {
+    const legacyPrinter = localStorage.getItem("kholif_pos_printer_config");
+    if (legacyPrinter) {
+      try {
+        state.printerConfig = JSON.parse(legacyPrinter);
+      } catch (e) {}
+    }
+    await setLocalItem("kholif_pos_printer_config", state.printerConfig);
+  }
 
   const localFeatures = await getLocalItem("kholif_features_manifest");
   if (localFeatures) state.featuresConfig = localFeatures;
@@ -294,6 +318,11 @@ export function persistFeatures() {
   });
 }
 
+export function persistPrinterConfig() {
+  setLocalItem("kholif_pos_printer_config", state.printerConfig);
+  localStorage.setItem("kholif_pos_printer_config", JSON.stringify(state.printerConfig));
+}
+
 /* =========================================================
    SINKRONISASI REALTIME FIREBASE
    ========================================================= */
@@ -334,7 +363,7 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("members", err)
   );
 
-  // 3. Transaksi Penjualan (Disortir Berdasarkan Timestamp Kronologis)
+  // 3. Transaksi Penjualan
   onSnapshot(
     doc(db, "system_data", "sales"),
     async (snap) => {
