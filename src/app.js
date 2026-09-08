@@ -12,7 +12,8 @@ import {
   persistProducts,
   persistMembers,
   persistCategories,
-  persistPurchases
+  persistPurchases,
+  persistFinance
 } from "./state.js";
 import { 
   loadViews, 
@@ -29,6 +30,7 @@ import { initPurchasesModule, renderPurchasesTable, renderSupplierDebtsTable } f
 import { initMembersModule, renderAllMemberData, closeMemberSubMenu } from "./members.js";
 import { initPosModule, renderCategories, renderProducts, renderCart, addToCart, attachMember } from "./pos.js";
 import { initReportsModule, renderReports } from "./reports.js";
+import { initFinanceModule, renderFinanceDashboard, closeFinanceSubMenu } from "./finance.js";
 import { playScannerBeep, showScanToast, debounce } from "./utils.js";
 
 async function bootstrap() {
@@ -40,12 +42,14 @@ async function bootstrap() {
   initMembersModule();
   initPosModule();
   initReportsModule();
+  initFinanceModule();
   initPrinterSettings();
 
   initGlobalDialogEvents({
     closeMasterItSubMenu: () => closeMasterItSubMenu(),
     closeMemberSubMenu: () => closeMemberSubMenu(),
     closeInvSubMenu: () => closeInvSubMenu(),
+    closeFinanceSubMenu: () => closeFinanceSubMenu(),
     closeSettingsSubMenu: () => {
       state.activeSettingsSubMenuId = null;
       document.getElementById("settingsDetailView")?.classList.add("hidden");
@@ -67,6 +71,7 @@ async function bootstrap() {
       renderProducts();
       renderAllInventoryData();
       renderConsoleTable();
+      renderFinanceDashboard();
       updateMetricsDashboard();
     },
     onMembersChange: () => {
@@ -78,6 +83,7 @@ async function bootstrap() {
       renderAllMemberData();
       renderReports();
       renderConsoleTable();
+      renderFinanceDashboard();
       updateMetricsDashboard();
     },
     onAccountsChange: () => {
@@ -93,6 +99,7 @@ async function bootstrap() {
     onPurchasesChange: () => {
       renderPurchasesTable();
       renderConsoleTable();
+      renderFinanceDashboard();
       updateMetricsDashboard();
     },
     onSupplierDebtsChange: () => {
@@ -101,6 +108,11 @@ async function bootstrap() {
     },
     onOpnamesChange: () => {
       renderAllInventoryData();
+      updateMetricsDashboard();
+    },
+    onFinanceChange: () => {
+      renderFinanceDashboard();
+      renderReports();
       updateMetricsDashboard();
     },
     onFeaturesChange: () => {
@@ -161,6 +173,10 @@ export function switchView(viewId) {
     } else if (viewId === "view-reports") {
       if (hTitle) hTitle.textContent = "LAPORAN";
       renderReports();
+    } else if (viewId === "view-finance") {
+      if (hTitle) hTitle.textContent = "KEUANGAN";
+      closeFinanceSubMenu();
+      renderFinanceDashboard();
     } else if (viewId === "view-settings") {
       if (hTitle) hTitle.textContent = "PENGATURAN";
       state.activeSettingsSubMenuId = null;
@@ -364,7 +380,6 @@ function initSettingsModule() {
 
   initMasterItModule();
 
-  // Pencadangan Transaksi JSON
   const btnBackup = document.getElementById("btnBackupTransactions");
   if (btnBackup) {
     btnBackup.onclick = async () => {
@@ -390,7 +405,6 @@ function initSettingsModule() {
     };
   }
 
-  // Import Data Persediaan (Excel, CSV, JSON)
   const btnTriggerImport = document.getElementById("btnTriggerImportInventory");
   const fileInputImport = document.getElementById("inputImportInventoryFile");
   const btnTemplate = document.getElementById("btnDownloadTemplateImport");
@@ -412,7 +426,6 @@ function initSettingsModule() {
     btnTemplate.onclick = () => downloadInventoryCsvTemplate();
   }
 
-  // Pengosongan Transaksi
   const btnClear = document.getElementById("btnClearAllTransactions");
   if (btnClear) {
     btnClear.onclick = async () => {
@@ -429,6 +442,7 @@ function initSettingsModule() {
         persistSales();
         renderAllMemberData();
         renderReports();
+        renderFinanceDashboard();
         updateMetricsDashboard();
         showScanToast("Semua data transaksi dikosongkan");
       } else {
@@ -531,6 +545,7 @@ async function handleImportInventoryFile(file) {
     persistProducts();
     renderProducts();
     renderAllInventoryData();
+    renderFinanceDashboard();
     updateMetricsDashboard();
 
     await showThemedAlert(
@@ -839,7 +854,8 @@ export function updateMetricsDashboard() {
     state.supplierDebtsDB.length +
     state.stockOpnamesDB.length +
     state.salesTransactions.length +
-    state.accountsDB.length;
+    state.accountsDB.length +
+    (state.financeDB?.logs?.length || 0);
 
   const payloadStr = JSON.stringify({
     products: state.productsDB,
@@ -850,6 +866,7 @@ export function updateMetricsDashboard() {
     opnames: state.stockOpnamesDB,
     sales: state.salesTransactions,
     accounts: state.accountsDB,
+    finance: state.financeDB,
     features: state.featuresConfig
   });
 
@@ -1046,6 +1063,7 @@ function saveConsoleCollection(tableName) {
       persistProducts();
       renderProducts();
       renderAllInventoryData();
+      renderFinanceDashboard();
       break;
     case "categories":
       persistCategories();
@@ -1059,11 +1077,13 @@ function saveConsoleCollection(tableName) {
       persistPurchases();
       renderPurchasesTable();
       renderSupplierDebtsTable();
+      renderFinanceDashboard();
       break;
     case "sales":
       persistSales();
       renderReports();
       renderAllMemberData();
+      renderFinanceDashboard();
       break;
     case "accounts":
       persistAccounts();
