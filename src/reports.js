@@ -37,6 +37,17 @@ export function initReportsModule() {
     };
   }
 
+  // Klik Best Seller membuka analisis barang laris & peringatan restock
+  const cardBestSeller = document.getElementById("cardBestSellerClickable");
+  if (cardBestSeller) {
+    cardBestSeller.onclick = () => openFastMovingPage();
+  }
+
+  const btnBackFast = document.getElementById("btnBackFastMovingPage");
+  if (btnBackFast) {
+    btnBackFast.onclick = () => window.history.back();
+  }
+
   const editTrxForm = document.getElementById("editTrxForm");
   if (editTrxForm) {
     editTrxForm.addEventListener("submit", (e) => {
@@ -84,13 +95,54 @@ export function renderReports() {
   const suksesTrx = state.salesTransactions.filter((t) => t.status !== "Dibatalkan");
   const totalRev = suksesTrx.reduce((acc, t) => acc + t.total, 0);
 
+  // Kalkulasi Keuntungan Kotor: Omzet - Total HPP barang yang terjual
+  let totalHppSold = 0;
+  const productSalesMap = {};
+
+  suksesTrx.forEach((trx) => {
+    if (trx.items && Array.isArray(trx.items)) {
+      trx.items.forEach((item) => {
+        const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+        const costPrice = prod ? Number(prod.costPrice || 0) : 0;
+        totalHppSold += costPrice * (item.qty || 1);
+
+        productSalesMap[item.name] = (productSalesMap[item.name] || 0) + (item.qty || 1);
+      });
+    }
+  });
+
+  const grossProfit = Math.max(0, totalRev - totalHppSold);
+
+  // Kalkulasi Biaya Operasional Penjualan dari Arus Kas
+  const totalOperationalExpense = (state.financeDB?.logs || [])
+    .filter((l) => l.type === "Biaya Operasional")
+    .reduce((acc, l) => acc + Number(l.amount || 0), 0);
+
+  // Keuntungan Bersih: Keuntungan Kotor - Biaya Operasional Penjualan
+  const netProfit = grossProfit - totalOperationalExpense;
+
+  // Temukan barang terlaris
+  let bestItemName = "-";
+  let maxQty = 0;
+  Object.keys(productSalesMap).forEach((name) => {
+    if (productSalesMap[name] > maxQty) {
+      maxQty = productSalesMap[name];
+      bestItemName = name;
+    }
+  });
+
   const revEl = document.getElementById("statTotalRevenue");
-  const countEl = document.getElementById("statTotalTransactions");
+  const grossEl = document.getElementById("statGrossProfit");
+  const netEl = document.getElementById("statNetProfit");
   const bestEl = document.getElementById("statBestSeller");
 
   if (revEl) revEl.textContent = `Rp ${totalRev.toLocaleString("id-ID")}`;
-  if (countEl) countEl.textContent = suksesTrx.length;
-  if (bestEl) bestEl.textContent = state.productsDB[0]?.name ? state.productsDB[0].name.substring(0, 18) + "..." : "-";
+  if (grossEl) grossEl.textContent = `Rp ${grossProfit.toLocaleString("id-ID")}`;
+  if (netEl) {
+    netEl.textContent = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
+    netEl.style.color = netProfit >= 0 ? "#16a34a" : "var(--brand-danger)";
+  }
+  if (bestEl) bestEl.textContent = bestItemName !== "-" ? `${bestItemName} (${maxQty}x)` : "-";
 
   const canModify = state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "master_it");
 
@@ -143,6 +195,48 @@ export function renderReports() {
       };
     });
   }
+}
+
+function openFastMovingPage() {
+  const tbody = document.getElementById("fastMovingTableBody");
+  if (!tbody) return;
+
+  const salesCountMap = {};
+  state.salesTransactions.filter((t) => t.status !== "Dibatalkan").forEach((trx) => {
+    (trx.items || []).forEach((it) => {
+      salesCountMap[it.name] = (salesCountMap[it.name] || 0) + (it.qty || 1);
+    });
+  });
+
+  const list = (state.productsDB || []).map((p) => {
+    const sold = salesCountMap[p.name] || 0;
+    return { ...p, soldQty: sold };
+  });
+
+  list.sort((a, b) => b.soldQty - a.soldQty);
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-secondary); padding: 14px;">Belum ada data transaksi barang.</td></tr>`;
+  } else {
+    tbody.innerHTML = list.map((item) => {
+      const isUrgent = item.stock <= 15;
+      return `
+        <tr>
+          <td><strong>${item.name}</strong><br><small style="color:var(--text-secondary);">${item.cat}</small></td>
+          <td><strong>${item.soldQty}</strong> pcs</td>
+          <td><strong>${item.stock}</strong> pcs</td>
+          <td>
+            <span class="badge-mono ${isUrgent ? 'badge-status-dibatalkan' : 'badge-status-sukses'}">
+              ${isUrgent ? '⚠️ Segera Restock!' : 'Aman'}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  document.getElementById("fastMovingPageScreen")?.classList.add("active");
+  reinforceHistoryBarrier();
 }
 
 function openEditTrxPage(trx) {
