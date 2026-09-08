@@ -1,10 +1,11 @@
 // sw.js - Service Worker Kholif Store POS
-const CACHE_NAME = "kholif-pos-cache-v2026-v2";
+const CACHE_NAME = "kholif-pos-cache-v2026-v4";
 
 const APP_SHELL_ASSETS = [
   "./",
   "./index.html",
   "./logo.png",
+  "./logo-maskable.png",
   "./manifest.json",
   "./firebase-config.js",
   "./css/style.css",
@@ -22,6 +23,7 @@ const APP_SHELL_ASSETS = [
   "./src/purchases.js",
   "./src/members.js",
   "./src/reports.js",
+  "./src/finance.js",
   "./src/printer.js",
   "./src/db-local.js",
   "./src/utils.js",
@@ -30,11 +32,12 @@ const APP_SHELL_ASSETS = [
   "./views/purchases.html",
   "./views/inventory.html",
   "./views/reports.html",
+  "./views/finance.html",
   "./views/setting.html",
   "./views/modals.html"
 ];
 
-// 1. Pemasangan Cache Awal (Aman dari kegagalan 404)
+// 1. Pemasangan Cache Awal (Aman dari kegagalan 404 agar instalasi PWA tidak batal)
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
@@ -42,7 +45,7 @@ self.addEventListener("install", (event) => {
         try {
           await cache.add(asset);
         } catch (err) {
-          console.warn(`Gagal menyimpan cache untuk aset: ${asset}`, err);
+          console.warn(`Aset dilewati saat pra-cache: ${asset}`, err);
         }
       }
     }).then(() => self.skipWaiting())
@@ -69,6 +72,7 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
+  // Abaikan permintaan keluar ke Firestore, Firebase, dan Google APIs
   if (
     req.method !== "GET" ||
     url.hostname.includes("firestore.googleapis.com") ||
