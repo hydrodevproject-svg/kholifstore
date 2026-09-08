@@ -542,17 +542,37 @@ function initPosEvents() {
     };
   }
 
+  // Pengiriman Nota WA langsung tanpa meminta ulang jika member sudah terdaftar
   const btnSendWaReceiptSuccess = document.getElementById("btnSendWaReceiptSuccess");
   if (btnSendWaReceiptSuccess) {
     btnSendWaReceiptSuccess.onclick = async () => {
       if (!state.salesTransactions[0]) return;
       const trx = state.salesTransactions[0];
-      let target = trx.member?.phone ? trx.member.phone.replace(/^0/, "62").replace(/\D/g, "") : "";
+      
+      let target = "";
+      
+      if (trx.member && trx.member.phone) {
+        let clean = String(trx.member.phone).replace(/\D/g, "");
+        if (clean.startsWith("0")) {
+          clean = "62" + clean.slice(1);
+        } else if (clean.startsWith("8")) {
+          clean = "62" + clean;
+        }
+        target = clean;
+      }
+
       if (!target) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
-        target = inp.replace(/^0/, "62").replace(/\D/g, "");
+        let cleanInp = inp.replace(/\D/g, "");
+        if (cleanInp.startsWith("0")) {
+          cleanInp = "62" + cleanInp.slice(1);
+        } else if (cleanInp.startsWith("8")) {
+          cleanInp = "62" + cleanInp;
+        }
+        target = cleanInp;
       }
+
       window.open(`https://wa.me/${target}?text=${generateWhatsAppText(trx)}`, "_blank");
     };
   }
