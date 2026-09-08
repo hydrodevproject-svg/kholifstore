@@ -33,6 +33,12 @@ import { initReportsModule, renderReports } from "./reports.js";
 import { initFinanceModule, renderFinanceDashboard, closeFinanceSubMenu } from "./finance.js";
 import { playScannerBeep, showScanToast, debounce } from "./utils.js";
 
+const MAX_CONSOLE_RENDER = 50;
+
+export const debouncedUpdateMetrics = debounce(() => {
+  updateMetricsDashboard();
+}, 250);
+
 async function bootstrap() {
   await loadViews();
   await loadInitialStateFromDB();
@@ -72,53 +78,53 @@ async function bootstrap() {
       renderAllInventoryData();
       renderConsoleTable();
       renderFinanceDashboard();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onMembersChange: () => {
       renderAllMemberData();
       renderConsoleTable();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onSalesChange: () => {
       renderAllMemberData();
       renderReports();
       renderConsoleTable();
       renderFinanceDashboard();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onAccountsChange: () => {
       renderAccountsTable();
       renderConsoleTable();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onCategoriesChange: () => {
       renderCategories();
       renderConsoleTable();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onPurchasesChange: () => {
       renderPurchasesTable();
       renderConsoleTable();
       renderFinanceDashboard();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onSupplierDebtsChange: () => {
       renderSupplierDebtsTable();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onOpnamesChange: () => {
       renderAllInventoryData();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onFinanceChange: () => {
       renderFinanceDashboard();
       renderReports();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     },
     onFeaturesChange: () => {
       applyFeatureGate();
       renderCart();
-      updateMetricsDashboard();
+      debouncedUpdateMetrics();
     }
   });
 
@@ -378,6 +384,22 @@ function initSettingsModule() {
     };
   }
 
+  // Event Delegation: Modul Operasional Kasir
+  const posTogglesContainer = document.getElementById("posOperationalToggles");
+  if (posTogglesContainer) {
+    posTogglesContainer.addEventListener("change", (e) => {
+      const sw = e.target.closest(".op-toggle-switch");
+      if (!sw) return;
+      const id = sw.getAttribute("data-id");
+      if (state.featuresConfig[id]) {
+        state.featuresConfig[id].enabled = sw.checked;
+        persistFeatures();
+        applyFeatureGate();
+        renderCart();
+      }
+    });
+  }
+
   initMasterItModule();
 
   const btnBackup = document.getElementById("btnBackupTransactions");
@@ -443,7 +465,7 @@ function initSettingsModule() {
         renderAllMemberData();
         renderReports();
         renderFinanceDashboard();
-        updateMetricsDashboard();
+        debouncedUpdateMetrics();
         showScanToast("Semua data transaksi dikosongkan");
       } else {
         showScanToast("Penghapusan dibatalkan");
@@ -546,7 +568,7 @@ async function handleImportInventoryFile(file) {
     renderProducts();
     renderAllInventoryData();
     renderFinanceDashboard();
-    updateMetricsDashboard();
+    debouncedUpdateMetrics();
 
     await showThemedAlert(
       "Import Persediaan Sukses",
@@ -691,7 +713,6 @@ function openSettingsSubMenu(subId) {
 function renderOperationalToggles() {
   const container = document.getElementById("posOperationalToggles");
   if (!container) return;
-  container.innerHTML = "";
 
   const desc = {
     feat_pajak: "PPN (11%) otomatis pada kalkulasi kasir",
@@ -699,11 +720,10 @@ function renderOperationalToggles() {
     feat_tahan_pesanan: "Simpan antrean keranjang sementara"
   };
 
-  Object.values(state.featuresConfig).forEach((feat) => {
-    if (state.currentUser.role === "admin" && !feat.allowedRoles.includes("admin")) return;
-    const row = document.createElement("div");
-    row.className = "settings-toggle-row";
-    row.innerHTML = `
+  container.innerHTML = Object.values(state.featuresConfig).filter((feat) => {
+    return !(state.currentUser.role === "admin" && !feat.allowedRoles.includes("admin"));
+  }).map((feat) => `
+    <div class="settings-toggle-row">
       <div class="toggle-info">
         <strong>${feat.name}</strong>
         <span>${desc[feat.id] || "Modul operasional"}</span>
@@ -712,19 +732,8 @@ function renderOperationalToggles() {
         <input type="checkbox" class="op-toggle-switch" data-id="${feat.id}" ${feat.enabled ? "checked" : ""} />
         <span class="threads-slider"></span>
       </label>
-    `;
-    container.appendChild(row);
-  });
-
-  container.querySelectorAll(".op-toggle-switch").forEach((sw) => {
-    sw.onchange = () => {
-      const id = sw.getAttribute("data-id");
-      state.featuresConfig[id].enabled = sw.checked;
-      persistFeatures();
-      applyFeatureGate();
-      renderCart();
-    };
-  });
+    </div>
+  `).join("");
 }
 
 function initMasterItModule() {
@@ -735,6 +744,136 @@ function initMasterItModule() {
   const btnBackMasterIt = document.getElementById("btnBackMasterItSubMenu");
   if (btnBackMasterIt) {
     btnBackMasterIt.onclick = () => closeMasterItSubMenu();
+  }
+
+  // Event Delegation: Tabel Akun IT (Edit Password & Hapus)
+  const itAccountsTbody = document.getElementById("itAccountsTableBody");
+  if (itAccountsTbody) {
+    itAccountsTbody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest(".btn-edit-acc");
+      if (editBtn) {
+        const u = editBtn.getAttribute("data-u");
+        const acc = state.accountsDB.find((a) => a.username === u);
+        if (!acc) return;
+
+        const newPass = await showThemedPrompt("Ubah Password", `Masukkan password baru untuk akun ${acc.name} (${u}):`, acc.password);
+        if (newPass && newPass.trim() !== "") {
+          acc.password = newPass.trim();
+          persistAccounts();
+          renderAccountsTable();
+          showScanToast("Password akun diperbarui");
+        }
+        return;
+      }
+
+      const delBtn = e.target.closest(".btn-del-acc");
+      if (delBtn) {
+        const u = delBtn.getAttribute("data-u");
+        const ok = await showThemedConfirm("Hapus Akun", `Hapus akun staf "${u}"?`);
+        if (ok) {
+          state.accountsDB = state.accountsDB.filter((a) => a.username !== u);
+          persistAccounts();
+          renderAccountsTable();
+          updateMasterItBadges();
+          showScanToast("Akun dihapus");
+        }
+      }
+    });
+  }
+
+  // Event Delegation: Kartu Modul Fitur IT
+  const itFeaturesContainer = document.getElementById("itFeatureCardsList");
+  if (itFeaturesContainer) {
+    itFeaturesContainer.addEventListener("change", (e) => {
+      const swEnable = e.target.closest(".it-toggle-enable");
+      if (swEnable) {
+        const id = swEnable.getAttribute("data-id");
+        state.featuresConfig[id].enabled = swEnable.checked;
+        persistFeatures();
+        applyFeatureGate();
+        renderCart();
+        return;
+      }
+
+      const swRole = e.target.closest(".it-toggle-role");
+      if (swRole) {
+        const id = swRole.getAttribute("data-id");
+        const role = swRole.getAttribute("data-role");
+        if (swRole.checked) {
+          if (!state.featuresConfig[id].allowedRoles.includes(role)) {
+            state.featuresConfig[id].allowedRoles.push(role);
+          }
+        } else {
+          state.featuresConfig[id].allowedRoles = state.featuresConfig[id].allowedRoles.filter((r) => r !== role);
+        }
+        persistFeatures();
+        applyFeatureGate();
+        renderCart();
+      }
+    });
+
+    itFeaturesContainer.addEventListener("click", async (e) => {
+      const elimBtn = e.target.closest(".btn-eliminate-module");
+      if (!elimBtn) return;
+      const id = elimBtn.getAttribute("data-id");
+      const ok = await showThemedConfirm("Eliminasi Modul", `Eliminasi fitur "${state.featuresConfig[id].name}"?`);
+      if (ok) {
+        delete state.featuresConfig[id];
+        persistFeatures();
+        applyFeatureGate();
+        renderCart();
+        renderItFeaturesCards();
+        updateMasterItBadges();
+      }
+    });
+  }
+
+  // Event Delegation: Tabel Console IT
+  const consoleTbody = document.getElementById("consoleDataTableBody");
+  if (consoleTbody) {
+    consoleTbody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest(".btn-console-edit");
+      if (editBtn) {
+        const idx = Number(editBtn.getAttribute("data-idx"));
+        const tableName = document.getElementById("consoleTableSelect")?.value || "products";
+        const search = document.getElementById("consoleSearchInput")?.value.toLowerCase().trim() || "";
+        const dataset = getConsoleCollection(tableName);
+        const filtered = dataset.filter((item) => {
+          const raw = typeof item === "string" ? item : JSON.stringify(item);
+          return raw.toLowerCase().includes(search);
+        });
+        const target = filtered[idx];
+        if (target) openConsoleEditorModal(false, target);
+        return;
+      }
+
+      const delBtn = e.target.closest(".btn-console-del");
+      if (delBtn) {
+        const idx = Number(delBtn.getAttribute("data-idx"));
+        const tableName = document.getElementById("consoleTableSelect")?.value || "products";
+        const search = document.getElementById("consoleSearchInput")?.value.toLowerCase().trim() || "";
+        const dataset = getConsoleCollection(tableName);
+        const filtered = dataset.filter((item) => {
+          const raw = typeof item === "string" ? item : JSON.stringify(item);
+          return raw.toLowerCase().includes(search);
+        });
+        const target = filtered[idx];
+        if (!target) return;
+
+        const ok = await showThemedConfirm("Hapus Data Console", "Apakah Anda yakin ingin menghapus data ini dari koleksi database?");
+        if (ok) {
+          const fullDataset = getConsoleCollection(tableName);
+          const realIdx = fullDataset.indexOf(target);
+          if (realIdx !== -1) {
+            fullDataset.splice(realIdx, 1);
+            saveConsoleCollection(tableName);
+            renderConsoleTable();
+            debouncedUpdateMetrics();
+            showScanToast("Data berhasil dihapus via Console");
+          }
+        }
+      }
+    });
   }
 
   const formCreateUser = document.getElementById("formCreateUser");
@@ -922,60 +1061,27 @@ function renderAccountsTable() {
         <td><span class="badge-mono">${acc.role.replace("_", " ")}</span></td>
         <td style="text-align: right;">
           ${isMaster ? "<small>Akun Utama</small>" : `
-            <button class="btn-table-action btn-edit-acc" data-u="${acc.username}">Edit</button>
-            <button class="btn-table-action btn-delete btn-del-acc" data-u="${acc.username}">Hapus</button>
+            <button type="button" class="btn-table-action btn-edit-acc" data-u="${acc.username}">Edit</button>
+            <button type="button" class="btn-table-action btn-delete btn-del-acc" data-u="${acc.username}">Hapus</button>
           `}
         </td>
       </tr>
     `;
   }).join("");
-
-  tbody.querySelectorAll(".btn-edit-acc").forEach((b) => {
-    b.onclick = async () => {
-      const u = b.getAttribute("data-u");
-      const acc = state.accountsDB.find((a) => a.username === u);
-      if (!acc) return;
-
-      const newPass = await showThemedPrompt("Ubah Password", `Masukkan password baru untuk akun ${acc.name} (${u}):`, acc.password);
-      if (newPass && newPass.trim() !== "") {
-        acc.password = newPass.trim();
-        persistAccounts();
-        renderAccountsTable();
-        showScanToast("Password akun diperbarui");
-      }
-    };
-  });
-
-  tbody.querySelectorAll(".btn-del-acc").forEach((b) => {
-    b.onclick = async () => {
-      const u = b.getAttribute("data-u");
-      const ok = await showThemedConfirm("Hapus Akun", `Hapus akun staf "${u}"?`);
-      if (ok) {
-        state.accountsDB = state.accountsDB.filter((a) => a.username !== u);
-        persistAccounts();
-        renderAccountsTable();
-        updateMasterItBadges();
-        showScanToast("Akun dihapus");
-      }
-    };
-  });
 }
 
 function renderItFeaturesCards() {
   const container = document.getElementById("itFeatureCardsList");
   if (!container) return;
-  container.innerHTML = "";
 
-  Object.values(state.featuresConfig).forEach((feat) => {
-    const card = document.createElement("div");
-    card.className = "feature-module-card";
-    card.innerHTML = `
+  container.innerHTML = Object.values(state.featuresConfig).map((feat) => `
+    <div class="feature-module-card">
       <div class="module-header">
         <div class="module-title-box">
           <strong>${feat.name}</strong>
           <small>${feat.id}</small>
         </div>
-        <button class="btn-eliminate-module" data-id="${feat.id}">Eliminasi</button>
+        <button type="button" class="btn-eliminate-module" data-id="${feat.id}">Eliminasi</button>
       </div>
       <div class="module-controls-grid">
         <div class="control-item">
@@ -1000,49 +1106,8 @@ function renderItFeaturesCards() {
           </label>
         </div>
       </div>
-    `;
-    container.appendChild(card);
-  });
-
-  container.querySelectorAll(".it-toggle-enable").forEach((sw) => {
-    sw.onchange = () => {
-      const id = sw.getAttribute("data-id");
-      state.featuresConfig[id].enabled = sw.checked;
-      persistFeatures();
-      applyFeatureGate();
-      renderCart();
-    };
-  });
-
-  container.querySelectorAll(".it-toggle-role").forEach((sw) => {
-    sw.onchange = () => {
-      const id = sw.getAttribute("data-id");
-      const role = sw.getAttribute("data-role");
-      if (sw.checked) {
-        if (!state.featuresConfig[id].allowedRoles.includes(role)) state.featuresConfig[id].allowedRoles.push(role);
-      } else {
-        state.featuresConfig[id].allowedRoles = state.featuresConfig[id].allowedRoles.filter((r) => r !== role);
-      }
-      persistFeatures();
-      applyFeatureGate();
-      renderCart();
-    };
-  });
-
-  container.querySelectorAll(".btn-eliminate-module").forEach((btn) => {
-    btn.onclick = async () => {
-      const id = btn.getAttribute("data-id");
-      const ok = await showThemedConfirm("Eliminasi Modul", `Eliminasi fitur "${state.featuresConfig[id].name}"?`);
-      if (ok) {
-        delete state.featuresConfig[id];
-        persistFeatures();
-        applyFeatureGate();
-        renderCart();
-        renderItFeaturesCards();
-        updateMasterItBadges();
-      }
-    };
-  });
+    </div>
+  `).join("");
 }
 
 function getConsoleCollection(tableName) {
@@ -1103,7 +1168,7 @@ function renderConsoleTable() {
   const dataset = getConsoleCollection(tableName);
   const filtered = dataset.filter((item) => {
     const raw = typeof item === "string" ? item : JSON.stringify(item);
-    return raw.toLowerCase().includes(search);
+    return !search || raw.toLowerCase().includes(search);
   });
 
   if (countEl) countEl.textContent = filtered.length;
@@ -1113,7 +1178,8 @@ function renderConsoleTable() {
     return;
   }
 
-  tbody.innerHTML = filtered.map((item, idx) => {
+  const displayList = filtered.slice(0, MAX_CONSOLE_RENDER);
+  tbody.innerHTML = displayList.map((item, idx) => {
     let key = `ROW-${idx}`;
     let preview = "";
 
@@ -1130,39 +1196,12 @@ function renderConsoleTable() {
         <td><strong>${key}</strong></td>
         <td>${preview}</td>
         <td style="text-align: right;">
-          <button class="btn-table-action btn-console-edit" data-idx="${idx}">Edit</button>
-          <button class="btn-table-action btn-delete btn-console-del" data-idx="${idx}">Hapus</button>
+          <button type="button" class="btn-table-action btn-console-edit" data-idx="${idx}">Edit</button>
+          <button type="button" class="btn-table-action btn-delete btn-console-del" data-idx="${idx}">Hapus</button>
         </td>
       </tr>
     `;
   }).join("");
-
-  tbody.querySelectorAll(".btn-console-edit").forEach((b) => {
-    b.onclick = () => {
-      const idx = Number(b.getAttribute("data-idx"));
-      const target = filtered[idx];
-      openConsoleEditorModal(false, target);
-    };
-  });
-
-  tbody.querySelectorAll(".btn-console-del").forEach((b) => {
-    b.onclick = async () => {
-      const idx = Number(b.getAttribute("data-idx"));
-      const target = filtered[idx];
-      const ok = await showThemedConfirm("Hapus Data Console", "Apakah Anda yakin ingin menghapus data ini dari koleksi database?");
-      if (ok) {
-        const fullDataset = getConsoleCollection(tableName);
-        const realIdx = fullDataset.indexOf(target);
-        if (realIdx !== -1) {
-          fullDataset.splice(realIdx, 1);
-          saveConsoleCollection(tableName);
-          renderConsoleTable();
-          updateMetricsDashboard();
-          showScanToast("Data berhasil dihapus via Console");
-        }
-      }
-    };
-  });
 }
 
 function openConsoleEditorModal(isNew = true, existingItem = null) {
@@ -1239,7 +1278,7 @@ async function handleSaveConsoleEntry(e) {
     saveConsoleCollection(tableName);
     document.getElementById("consoleEditModal")?.classList.remove("open");
     renderConsoleTable();
-    updateMetricsDashboard();
+    debouncedUpdateMetrics();
     showScanToast("Perubahan data Console berhasil disimpan");
   } catch (err) {
     await showThemedAlert("Format JSON Salah", "Format teks JSON tidak valid. Periksa kembali tanda kurung dan koma:\n" + err.message, "error");
