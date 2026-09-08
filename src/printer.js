@@ -1,5 +1,5 @@
 // src/printer.js
-import { state } from "./state.js";
+import { state, persistPrinterConfig } from "./state.js";
 import { showScanToast } from "./utils.js";
 import { showThemedAlert, reinforceHistoryBarrier } from "./ui.js";
 
@@ -9,7 +9,7 @@ let bleCharacteristic = null;
 export function applyPrinterWidth(width) {
   state.printerConfig.paperWidth = width;
   document.documentElement.style.setProperty("--printer-paper-width", width);
-  localStorage.setItem("kholif_pos_printer_config", JSON.stringify(state.printerConfig));
+  persistPrinterConfig();
 }
 
 // Koneksi Web Bluetooth ESC/POS
@@ -278,7 +278,7 @@ function selectPaperWidthOption(val) {
 
 export function initPrinterSettings() {
   const currentWidth = state.printerConfig.paperWidth || "58mm";
-  applyPrinterWidth(currentWidth);
+  document.documentElement.style.setProperty("--printer-paper-width", currentWidth);
   updatePaperWidthUI(currentWidth);
 
   const btnConnect = document.getElementById("btnToggleConnectBluetooth");
@@ -292,7 +292,6 @@ export function initPrinterSettings() {
     };
   }
 
-  // Event Pemilih Ukuran Kertas Bertema
   const btnOpenModal = document.getElementById("btnOpenPaperWidthModal");
   const modal = document.getElementById("paperWidthModal");
   const btnCloseModal = document.getElementById("btnClosePaperWidthModal");
@@ -328,10 +327,10 @@ export function initPrinterSettings() {
 
   const toggleAutoPrint = document.getElementById("toggleAutoPrint");
   if (toggleAutoPrint) {
-    toggleAutoPrint.checked = state.printerConfig.autoPrint;
+    toggleAutoPrint.checked = Boolean(state.printerConfig.autoPrint);
     toggleAutoPrint.onchange = () => {
       state.printerConfig.autoPrint = toggleAutoPrint.checked;
-      localStorage.setItem("kholif_pos_printer_config", JSON.stringify(state.printerConfig));
+      persistPrinterConfig();
       showScanToast(state.printerConfig.autoPrint ? "Auto-print aktif" : "Auto-print mati");
     };
   }
