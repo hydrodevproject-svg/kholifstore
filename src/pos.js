@@ -460,12 +460,13 @@ function initPosEvents() {
         appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
       }
 
+      // Pastikan data member tersimpan secara utuh dalam transaksi
       const newTrx = {
         id: trxId,
         date: `${dayName}, ${dateFormatted}`,
         time: fullDateTimeStr,
         cashier: state.currentUser ? state.currentUser.name : "Kasir",
-        member: state.currentAttachedMember ? { name: state.currentAttachedMember.name, phone: state.currentAttachedMember.phone } : null,
+        member: state.currentAttachedMember ? { ...state.currentAttachedMember } : null,
         total: grandTotalNum,
         discount: appliedDiscount,
         paymentMethod,
@@ -546,34 +547,50 @@ function initPosEvents() {
   const btnSendWaReceiptSuccess = document.getElementById("btnSendWaReceiptSuccess");
   if (btnSendWaReceiptSuccess) {
     btnSendWaReceiptSuccess.onclick = async () => {
-      if (!state.salesTransactions[0]) return;
-      const trx = state.salesTransactions[0];
+      const trx = (state.salesTransactions && state.salesTransactions.length > 0) 
+        ? state.salesTransactions[0] 
+        : null;
       
-      let target = "";
-      
-      if (trx.member && trx.member.phone) {
-        let clean = String(trx.member.phone).replace(/\D/g, "");
+      if (!trx) return;
+
+      let targetPhone = "";
+
+      // 1. Ekstraksi langsung dari transaksi
+      if (trx.member) {
+        targetPhone = trx.member.phone || trx.member.wa || trx.member.telepon || "";
+      }
+
+      // 2. Fallback: Cocokkan ke database member jika nomor tidak tersalin di objek transaksi
+      if (!targetPhone && trx.member && trx.member.name) {
+        const found = state.membersDB.find((m) => m.name.toLowerCase().trim() === trx.member.name.toLowerCase().trim());
+        if (found) {
+          targetPhone = found.phone || found.wa || "";
+        }
+      }
+
+      // Format nomor ke format internasional (62)
+      let clean = String(targetPhone || "").replace(/\D/g, "");
+      if (clean.startsWith("0")) {
+        clean = "62" + clean.slice(1);
+      } else if (clean.startsWith("8")) {
+        clean = "62" + clean;
+      }
+
+      // 3. Hanya munculkan dialog prompt jika nomor kosong atau bukan transaksi member
+      if (!clean || clean.length < 9) {
+        const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
+        if (!inp) return;
+        clean = inp.replace(/\D/g, "");
         if (clean.startsWith("0")) {
           clean = "62" + clean.slice(1);
         } else if (clean.startsWith("8")) {
           clean = "62" + clean;
         }
-        target = clean;
       }
 
-      if (!target) {
-        const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
-        if (!inp) return;
-        let cleanInp = inp.replace(/\D/g, "");
-        if (cleanInp.startsWith("0")) {
-          cleanInp = "62" + cleanInp.slice(1);
-        } else if (cleanInp.startsWith("8")) {
-          cleanInp = "62" + cleanInp;
-        }
-        target = cleanInp;
+      if (clean) {
+        window.open(`https://wa.me/${clean}?text=${generateWhatsAppText(trx)}`, "_blank");
       }
-
-      window.open(`https://wa.me/${target}?text=${generateWhatsAppText(trx)}`, "_blank");
     };
   }
 
