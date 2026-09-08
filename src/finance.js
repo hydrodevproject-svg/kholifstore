@@ -3,6 +3,8 @@ import { state, persistFinance } from "./state.js";
 import { showThemedAlert, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast } from "./utils.js";
 
+const MAX_FINANCE_LOGS_RENDER = 50;
+
 export function initFinanceModule() {
   document.querySelectorAll("[data-fin-sub]").forEach((card) => {
     card.onclick = () => openFinanceSubMenu(card.getAttribute("data-fin-sub"));
@@ -81,12 +83,15 @@ export function renderFinanceDashboard() {
   const currentCash = state.financeDB.cashBalance || 0;
   if (statCash) statCash.textContent = `Rp ${currentCash.toLocaleString("id-ID")}`;
 
-  // Hitung total aset modal barang fisik yang tersedia
-  const totalAsset = (state.productsDB || []).reduce((acc, p) => {
-    const cost = Number(p.costPrice) || 0;
-    const stock = Number(p.stock) || 0;
-    return acc + (cost * stock);
-  }, 0);
+  // Hitung total nilai modal fisik persediaan
+  let totalAsset = 0;
+  const products = state.productsDB || [];
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    if (p) {
+      totalAsset += (Number(p.costPrice) || 0) * (Number(p.stock) || 0);
+    }
+  }
 
   if (statAsset) statAsset.textContent = `Rp ${totalAsset.toLocaleString("id-ID")}`;
 
@@ -100,7 +105,8 @@ export function renderFinanceDashboard() {
     return;
   }
 
-  tbody.innerHTML = logs.slice(0, 50).map((l) => {
+  const displayLogs = logs.slice(0, MAX_FINANCE_LOGS_RENDER);
+  tbody.innerHTML = displayLogs.map((l) => {
     const isIncome = l.type.includes("Setor") || l.type.includes("Penjualan");
     return `
       <tr>
@@ -150,6 +156,7 @@ async function handleSaveFinanceAction(e) {
   const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
   const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
+  if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
   state.financeDB.logs.unshift({
     id: `FIN-${Date.now()}`,
     time: `${dateStr} • ${timeStr}`,
