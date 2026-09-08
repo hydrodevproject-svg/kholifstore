@@ -249,6 +249,16 @@ async function handleSaveProduct(e) {
       prod.cat = cat;
       prod.costPrice = costPrice;
       prod.price = price;
+
+      // Sinkronkan perubahan harga ke seluruh batch yang masih bersisa
+      if (Array.isArray(prod.batches)) {
+        prod.batches.forEach((b) => {
+          if (b.qty > 0) {
+            b.buyPrice = costPrice;
+            b.sellPrice = price;
+          }
+        });
+      }
     }
   } else {
     const newId = Date.now();
@@ -542,7 +552,21 @@ function initStockOpnameEvents() {
       const diff = physStock - sysStock;
       const note = document.getElementById("opnameNote").value.trim();
 
+      // Sinkronkan stok fisik ke objek produk dan kumpulan batch aktif
       prod.stock = physStock;
+      if (Array.isArray(prod.batches) && prod.batches.length > 0) {
+        prod.batches.forEach((b) => { b.qty = 0; });
+        prod.batches[prod.batches.length - 1].qty = physStock;
+      } else {
+        prod.batches = [{
+          id: `BATCH-${Date.now()}`,
+          nota: "OPNAME-ADJUST",
+          buyPrice: prod.costPrice,
+          sellPrice: prod.price,
+          qty: physStock,
+          expireDate: ""
+        }];
+      }
       persistProducts();
 
       state.stockOpnamesDB.unshift({
