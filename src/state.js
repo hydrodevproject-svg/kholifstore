@@ -22,6 +22,7 @@ export const state = {
   activeSettingsSubMenuId: null,
   activeMasterItSubMenuId: null,
   activeInvSubMenuId: null,
+  activeFinSubMenuId: null,
   currentEditingTrx: null,
   currentEditingPurchase: null,
   lastSyncTimestamp: Date.now(),
@@ -59,6 +60,12 @@ export const state = {
   supplierDebtsDB: [],
   stockOpnamesDB: [],
   salesTransactions: [],
+
+  // Saldo Kas Fisik & Catatan Mutasi Keuangan
+  financeDB: {
+    cashBalance: 500000,
+    logs: []
+  },
 
   printerConfig: {
     paperWidth: "58mm",
@@ -177,6 +184,14 @@ export async function loadInitialStateFromDB() {
     await setLocalItem("kholif_pos_sales", state.salesTransactions);
   }
 
+  const localFinance = await getLocalItem("kholif_pos_finance");
+  if (localFinance && typeof localFinance === "object") {
+    state.financeDB = localFinance;
+  } else {
+    state.financeDB = { cashBalance: 500000, logs: [] };
+    await setLocalItem("kholif_pos_finance", state.financeDB);
+  }
+
   const localPrinter = await getLocalItem("kholif_pos_printer_config");
   if (localPrinter) state.printerConfig = localPrinter;
 
@@ -255,6 +270,15 @@ export function persistSales() {
   });
 }
 
+export function persistFinance() {
+  setLocalItem("kholif_pos_finance", state.financeDB);
+  queueFirestoreSync("finance", () => {
+    try {
+      setDoc(doc(db, "system_data", "finance"), state.financeDB, { merge: true });
+    } catch (e) {}
+  });
+}
+
 export function persistFeatures() {
   setLocalItem("kholif_features_manifest", state.featuresConfig);
   queueFirestoreSync("features", () => {
@@ -263,7 +287,7 @@ export function persistFeatures() {
 }
 
 /* =========================================================
-   SINKRONISASI REALTIME (DENGAN PENANGANAN ERROR & OFFLINE)
+   SINKRONISASI REALTIME FIREBASE
    ========================================================= */
 export function initFirebaseSync(callbacks = {}) {
   const markSync = () => {
@@ -405,5 +429,19 @@ export function initFirebaseSync(callbacks = {}) {
       }
     },
     (err) => handleSyncError("features_manifest", err)
+  );
+
+  // 10. Data Kas Keuangan Toko
+  onSnapshot(
+    doc(db, "system_data", "finance"),
+    async (snap) => {
+      if (snap.exists()) {
+        state.financeDB = snap.data();
+        await setLocalItem("kholif_pos_finance", state.financeDB);
+        markSync();
+        if (callbacks.onFinanceChange) callbacks.onFinanceChange();
+      }
+    },
+    (err) => handleSyncError("finance", err)
   );
 }
