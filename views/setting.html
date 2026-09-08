@@ -1,4 +1,4 @@
-<!-- VIEW: PENGATURAN & MASTER IT -->
+l<!-- VIEW: PENGATURAN & MASTER IT -->
 <section id="view-settings" class="app-view">
   <div class="threads-container">
     <div id="settingsMenuView">
@@ -46,6 +46,19 @@
           </div>
           <strong class="sub-card-title">Transaksi POS</strong>
           <span class="sub-card-desc">Pajak, diskon &amp; modul</span>
+        </div>
+
+        <!-- SUB MENU TUTUP BUKU & KEUANGAN -->
+        <div class="settings-menu-card hidden" id="cardSubFinanceSettings" data-sub="subFinanceSettings">
+          <div class="sub-card-icon-box" style="color: #16a34a;">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+              <path d="M12 14v4M10 16h4"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Tutup Buku &amp; Kas</strong>
+          <span class="sub-card-desc">Bulanan, tahunan &amp; reset</span>
         </div>
 
         <div class="settings-menu-card hidden" id="cardSubMasterIt" data-sub="subMasterIt">
@@ -119,7 +132,6 @@
             </button>
           </div>
 
-          <!-- PEMILIH UKURAN KERTAS DENGAN POPUP BERTEMA -->
           <div class="input-field-group" style="margin-top: 14px; margin-bottom: 14px;">
             <label>Ukuran Lebar Kertas Struk</label>
             <div class="custom-picker-row" id="btnOpenPaperWidthModal">
@@ -181,6 +193,64 @@
             <span class="badge-mono">ADMIN &amp; IT</span>
           </div>
           <div class="settings-toggle-group" id="posOperationalToggles"></div>
+        </div>
+      </div>
+
+      <!-- PANEL BARU: TUTUP BUKU & KEUANGAN -->
+      <div class="sub-detail-panel hidden" id="panelSubFinanceSettings">
+        <div class="threads-card">
+          <div class="section-badge-title">
+            <h3 class="card-section-title">Manajemen Periode Buku &amp; Kas</h3>
+            <span class="badge-mono">ADMIN &amp; IT</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+            Proses audit berkala untuk membukukan omzet, laba bersih, serta penyesuaian saldo kas fisik toko.
+          </p>
+
+          <!-- AKSI TUTUP BUKU BULANAN -->
+          <div class="database-card-action">
+            <div class="db-action-info">
+              <strong>Tutup Buku Bulanan</strong>
+              <span>Rekap seluruh transaksi penjualan, HPP barang, dan beban operasional bulan ini ke dalam buku kas.</span>
+            </div>
+            <button type="button" class="btn-threads-primary" id="btnMonthlyClosingFinance">
+              <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
+              </svg>
+              <span>Lakukan Tutup Buku Bulanan</span>
+            </button>
+          </div>
+
+          <!-- AKSI TUTUP BUKU TAHUNAN -->
+          <div class="database-card-action">
+            <div class="db-action-info">
+              <strong>Tutup Buku Tahunan</strong>
+              <span>Kalkulasi akumulasi pendapatan tahunan, evaluasi laba bersih, dan arsipkan buku kas tahun berjalan.</span>
+            </div>
+            <button type="button" class="btn-threads-primary" id="btnAnnualClosingFinance" style="background-color: #1e40af !important;">
+              <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+              <span>Lakukan Tutup Buku Tahunan</span>
+            </button>
+          </div>
+
+          <!-- RESET DATA KEUANGAN -->
+          <div class="database-card-action danger-zone">
+            <div class="db-action-info">
+              <strong style="color: #c92a2a;">Reset Data Keuangan &amp; Kas</strong>
+              <span>Mengosongkan mutasi kas dan mereset saldo kas fisik toko. Memerlukan konfirmasi keamanan.</span>
+            </div>
+            <button type="button" class="btn-danger-action" id="btnResetFinanceData">
+              <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+              <span>Reset Data Keuangan</span>
+            </button>
+          </div>
         </div>
       </div>
 
