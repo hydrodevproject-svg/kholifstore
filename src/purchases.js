@@ -4,7 +4,7 @@ import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui
 import { showScanToast, debounce } from "./utils.js";
 import { renderAllInventoryData } from "./inventory.js";
 
-// Daftar penampung sementara banyak barang dalam satu faktur
+// Penampung sementara banyak barang dalam satu faktur
 let tempPurchaseItems = [];
 let activeSelectedProduct = null;
 
@@ -32,6 +32,15 @@ export function refreshProductPriceFromBatches(prod) {
     prod.costPrice = activeBatch.buyPrice;
     prod.price = activeBatch.sellPrice;
   }
+}
+
+export function generateAutoFaktur() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const rand = Math.floor(100 + Math.random() * 900);
+  return `INV/${y}${m}${d}/${rand}`;
 }
 
 export function renderPurchasesTable() {
@@ -121,6 +130,16 @@ function initAddPurchaseEvents() {
   const btnOpenPurchProductPicker = document.getElementById("btnOpenPurchProductPicker");
   const purchPaymentMethod = document.getElementById("purchPaymentMethod");
   const wrapPurchDueDate = document.getElementById("wrapPurchDueDate");
+  const btnAutoNota = document.getElementById("btnAutoGenerateNota");
+  const inNota = document.getElementById("purchNota");
+
+  // Tombol generator nomor faktur otomatis
+  if (btnAutoNota && inNota) {
+    btnAutoNota.onclick = () => {
+      inNota.value = generateAutoFaktur();
+      showScanToast("No. Faktur otomatis dibuat");
+    };
+  }
 
   if (btnOpenAddPurchaseModal) {
     btnOpenAddPurchaseModal.onclick = () => {
@@ -128,6 +147,9 @@ function initAddPurchaseEvents() {
       tempPurchaseItems = [];
       renderPurchaseItemsList();
       if (wrapPurchDueDate) wrapPurchDueDate.classList.add("hidden");
+      
+      // Isi nomor faktur otomatis saat laman dibuka
+      if (inNota) inNota.value = generateAutoFaktur();
 
       purchaseScreen?.classList.add("active");
       reinforceHistoryBarrier();
