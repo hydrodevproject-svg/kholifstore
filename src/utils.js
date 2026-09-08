@@ -71,3 +71,13 @@ export function debounce(fn, delay = 100) {
     timer = setTimeout(() => fn(...args), delay);
   };
 }
+
+export function normalizePhoneNumber(raw) {
+  let clean = String(raw || "").replace(/\D/g, "");
+  if (clean.startsWith("0")) {
+    clean = "62" + clean.slice(1);
+  } else if (clean.startsWith("8")) {
+    clean = "62" + clean;
+  }
+  return clean;
+}
