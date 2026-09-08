@@ -9,8 +9,8 @@ import { renderAllMemberData } from "./members.js";
 import { renderReports } from "./reports.js";
 import { renderFinanceDashboard } from "./finance.js";
 
-// Mengunci objek transaksi terakhir agar tidak terpengaruh re-sorting array
 let lastCompletedTrx = null;
+const MAX_POS_PRODUCTS_RENDER = 60;
 
 export function initPosModule() {
   initPosEvents();
@@ -76,21 +76,24 @@ const MONO_ITEM_SVG = `
 export function renderProducts() {
   const productsGrid = document.getElementById("productsGrid");
   if (!productsGrid) return;
+
+  const query = state.searchQuery.toLowerCase().trim();
   const filtered = state.productsDB.filter((p) => {
     const matchCat = state.currentCategory === "all" || p.cat === state.currentCategory;
-    const matchSearch =
-      p.name.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(state.searchQuery));
+    const matchSearch = !query ||
+      p.name.toLowerCase().includes(query) ||
+      (p.barcode && p.barcode.includes(query));
     return matchCat && matchSearch;
   });
 
+  const displayList = filtered.slice(0, MAX_POS_PRODUCTS_RENDER);
   const frag = document.createDocumentFragment();
 
-  filtered.forEach((p) => {
+  displayList.forEach((p) => {
     const isOutOfStock = p.stock <= 0;
     const row = document.createElement("div");
     row.className = `product-list-row ${isOutOfStock ? "out-of-stock" : ""}`;
-    if (!isOutOfStock) row.onclick = () => addToCart(p);
+    row.setAttribute("data-product-id", p.id);
 
     row.innerHTML = `
       <div class="prod-row-left">
@@ -177,9 +180,9 @@ export function renderCart() {
         <span>Rp ${item.price.toLocaleString("id-ID")}</span>
       </div>
       <div class="stepper">
-        <button class="btn-minus" data-id="${item.id}">-</button>
+        <button type="button" class="btn-minus" data-id="${item.id}">-</button>
         <span>${item.qty}</span>
-        <button class="btn-plus" data-id="${item.id}">+</button>
+        <button type="button" class="btn-plus" data-id="${item.id}">+</button>
       </div>
       <div class="order-row-subtotal">Rp ${sub.toLocaleString("id-ID")}</div>
     `;
@@ -188,13 +191,6 @@ export function renderCart() {
 
   orderList.innerHTML = "";
   orderList.appendChild(frag);
-
-  orderList.querySelectorAll(".btn-minus").forEach((b) => {
-    b.onclick = () => updateQty(Number(b.getAttribute("data-id")), -1);
-  });
-  orderList.querySelectorAll(".btn-plus").forEach((b) => {
-    b.onclick = () => updateQty(Number(b.getAttribute("data-id")), 1);
-  });
 
   let discountDeduction = 0;
   if (state.currentDiscountNominal > 0) {
@@ -302,6 +298,34 @@ export function attachMember(member) {
 }
 
 function initPosEvents() {
+  // Event Delegation untuk Katalog Produk
+  const productsGrid = document.getElementById("productsGrid");
+  if (productsGrid) {
+    productsGrid.addEventListener("click", (e) => {
+      const row = e.target.closest(".product-list-row");
+      if (!row || row.classList.contains("out-of-stock")) return;
+      const pId = Number(row.getAttribute("data-product-id"));
+      const prod = state.productsDB.find((p) => p.id === pId);
+      if (prod) addToCart(prod);
+    });
+  }
+
+  // Event Delegation untuk Keranjang Belanja (+ / - stepper)
+  const orderList = document.getElementById("orderList");
+  if (orderList) {
+    orderList.addEventListener("click", (e) => {
+      const minusBtn = e.target.closest(".btn-minus");
+      if (minusBtn) {
+        updateQty(Number(minusBtn.getAttribute("data-id")), -1);
+        return;
+      }
+      const plusBtn = e.target.closest(".btn-plus");
+      if (plusBtn) {
+        updateQty(Number(plusBtn.getAttribute("data-id")), 1);
+      }
+    });
+  }
+
   const btnBayar = document.getElementById("btnBayar");
   if (btnBayar) {
     btnBayar.onclick = async () => {
@@ -463,7 +487,6 @@ function initPosEvents() {
         appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
       }
 
-      // Pastikan data nomor telepon member terkunci dengan lengkap
       const attachedMemberClone = state.currentAttachedMember ? {
         id: state.currentAttachedMember.id,
         name: state.currentAttachedMember.name,
@@ -485,7 +508,6 @@ function initPosEvents() {
         status: "Sukses"
       };
 
-      // Kunci referensi transaksi ini agar tidak tertukar
       lastCompletedTrx = newTrx;
 
       state.salesTransactions.unshift(newTrx);
@@ -557,7 +579,6 @@ function initPosEvents() {
     };
   }
 
-  // Pengiriman Nota WA langsung dengan normalisasi format nomor
   const btnSendWaReceiptSuccess = document.getElementById("btnSendWaReceiptSuccess");
   if (btnSendWaReceiptSuccess) {
     btnSendWaReceiptSuccess.onclick = async () => {
@@ -565,13 +586,10 @@ function initPosEvents() {
       if (!trx) return;
 
       let rawPhone = "";
-
-      // 1. Ambil nomor dari objek member transaksi
       if (trx.member) {
         rawPhone = trx.member.phone || trx.member.wa || trx.member.telepon || "";
       }
 
-      // 2. Fallback: Cocokkan ke database member jika properti nomor di transaksi kosong
       if (!rawPhone && trx.member && trx.member.name) {
         const found = state.membersDB.find((m) => m.name.trim().toLowerCase() === trx.member.name.trim().toLowerCase());
         if (found) {
@@ -581,7 +599,6 @@ function initPosEvents() {
 
       let clean = normalizePhoneNumber(rawPhone);
 
-      // 3. Hanya tampilkan dialog jika transaksi benar-benar non-member atau nomor tidak valid
       if (!clean || clean.length < 9) {
         const inp = await showThemedPrompt("Kirim Nota WA", "Masukkan nomor WhatsApp tujuan:", "08");
         if (!inp) return;
@@ -721,7 +738,8 @@ function renderPosMemberPicker(q = "") {
     return;
   }
 
-  filtered.forEach((m) => {
+  const frag = document.createDocumentFragment();
+  filtered.slice(0, 30).forEach((m) => {
     const card = document.createElement("div");
     card.className = "member-picker-card";
     const phoneDisplay = m.phone || m.wa || "-";
@@ -736,8 +754,9 @@ function renderPosMemberPicker(q = "") {
       attachMember(m);
       window.history.back();
     };
-    list.appendChild(card);
+    frag.appendChild(card);
   });
+  list.appendChild(frag);
 }
 
 function initPosDiscountEvents() {
