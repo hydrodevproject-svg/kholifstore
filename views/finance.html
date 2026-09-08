@@ -1,0 +1,139 @@
+<!-- VIEW: KEUANGAN & ARUS KAS -->
+<section id="view-finance" class="app-view">
+  <div class="threads-container">
+    
+    <!-- HUB MENU KEUANGAN -->
+    <div id="financeMenuView">
+      <div class="view-action-header">
+        <div>
+          <h2>Keuangan &amp; Kas Toko</h2>
+          <p>Manajemen saldo kas fisik, penarikan keuntungan/modal, dan alokasi biaya operasional.</p>
+        </div>
+      </div>
+
+      <!-- KARTU RINGKASAN SALDO & MODAL ASET -->
+      <div class="report-stats-grid" style="margin-bottom: 14px;">
+        <div class="stat-card">
+          <small>Total Kas Fisik Saat Ini</small>
+          <h3 id="finStatCashOnHand" style="color: #16a34a;">Rp 0</h3>
+        </div>
+        <div class="stat-card">
+          <small>Total Modal Barang (Aset)</small>
+          <h3 id="finStatInventoryAsset">Rp 0</h3>
+        </div>
+      </div>
+
+      <div class="settings-sub-grid">
+        <div class="settings-menu-card" data-fin-sub="finSubWithdrawProfit">
+          <div class="sub-card-icon-box" style="color: #16a34a;">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Tarik Keuntungan</strong>
+          <span class="sub-card-desc">Bagi hasil / dividen profit toko</span>
+        </div>
+
+        <div class="settings-menu-card" data-fin-sub="finSubWithdrawCapital">
+          <div class="sub-card-icon-box" style="color: var(--brand-warning);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0z"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Tarik Modal</strong>
+          <span class="sub-card-desc">Pengambilan modal pokok usaha</span>
+        </div>
+
+        <div class="settings-menu-card" data-fin-sub="finSubOperationalExpense">
+          <div class="sub-card-icon-box" style="color: var(--brand-danger);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Biaya Operasional</strong>
+          <span class="sub-card-desc">Listrik, kresek, bensin &amp; sarana</span>
+        </div>
+
+        <div class="settings-menu-card" data-fin-sub="finSubDepositCapital">
+          <div class="sub-card-icon-box" style="color: var(--brand-accent);">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+            </svg>
+          </div>
+          <strong class="sub-card-title">Setor Modal Kas</strong>
+          <span class="sub-card-desc">Injeksi kas kasir / modal kerja</span>
+        </div>
+      </div>
+
+      <!-- ARSIP MUTASI KAS TERAKHIR -->
+      <div class="threads-card" style="margin-top: 14px;">
+        <div class="section-badge-title">
+          <h3 class="card-section-title">Buku Arus Kas Masuk &amp; Keluar</h3>
+          <span class="badge-mono" id="badgeTotalFinLogs">0 Mutasi</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Tipe Mutasi</th>
+                <th>Nominal</th>
+                <th>Admin</th>
+                <th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="financeLogsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL SUB-MENU KEUANGAN -->
+    <div id="financeDetailView" class="hidden">
+      <div class="settings-detail-nav">
+        <button class="btn-back-screen" id="btnBackFinSubMenu" type="button">
+          <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Kembali</span>
+        </button>
+        <h3 id="financeSubTitle">Formulir Kas</h3>
+      </div>
+
+      <div class="threads-card">
+        <form id="financeActionForm" onsubmit="return false;" class="modal-form-vertical">
+          <input type="hidden" id="finActionType" />
+          
+          <div class="form-group">
+            <label for="finInputAmount">Nominal Uang (Rp)</label>
+            <div class="input-icon-wrap">
+              <span class="currency-prefix-tag">Rp</span>
+              <input type="text" id="finInputAmount" class="input-with-currency" placeholder="0" inputmode="numeric" required autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="finInputNote">Keterangan / Keperluan</label>
+            <input type="text" id="finInputNote" placeholder="Cth: Beli isolasi & kantong plastik, bagi hasil..." required autocomplete="off" />
+          </div>
+
+          <div class="field-info-banner" id="finInfoBanner">
+            <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color:var(--brand-accent);">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span id="finInfoBannerText">Transaksi ini akan memotong saldo kas fisik toko.</span>
+          </div>
+
+          <button type="submit" id="btnSubmitFinanceAction" class="btn-threads-primary block" style="margin-top: 10px; height: 42px;">
+            Konfirmasi Transaksi Kas
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</section>
