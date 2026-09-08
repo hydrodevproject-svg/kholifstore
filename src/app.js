@@ -340,6 +340,12 @@ function setupUserSessionUI() {
     cardSubPosSettings.classList.toggle("hidden", !canManagePos);
   }
 
+  const cardSubFinanceSettings = document.getElementById("cardSubFinanceSettings");
+  if (cardSubFinanceSettings) {
+    const canManageFinance = state.currentUser.role === "admin" || state.currentUser.role === "master_it";
+    cardSubFinanceSettings.classList.toggle("hidden", !canManageFinance);
+  }
+
   const cardSubMasterIt = document.getElementById("cardSubMasterIt");
   if (cardSubMasterIt) {
     cardSubMasterIt.classList.toggle("hidden", state.currentUser.role !== "master_it");
@@ -384,7 +390,6 @@ function initSettingsModule() {
     };
   }
 
-  // Event Delegation: Modul Operasional Kasir
   const posTogglesContainer = document.getElementById("posOperationalToggles");
   if (posTogglesContainer) {
     posTogglesContainer.addEventListener("change", (e) => {
@@ -398,6 +403,149 @@ function initSettingsModule() {
         renderCart();
       }
     });
+  }
+
+  // Event Listener Sub-Menu Tutup Buku & Keuangan
+  const btnMonthlyClosing = document.getElementById("btnMonthlyClosingFinance");
+  if (btnMonthlyClosing) {
+    btnMonthlyClosing.onclick = async () => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const monthName = now.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
+      const monthSales = state.salesTransactions.filter((t) => {
+        if (t.status === "Dibatalkan") return false;
+        const d = t.timestamp ? new Date(t.timestamp) : new Date();
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+
+      const totalRev = monthSales.reduce((acc, t) => acc + (t.total || 0), 0);
+      let totalHpp = 0;
+      monthSales.forEach((trx) => {
+        if (Array.isArray(trx.items)) {
+          trx.items.forEach((item) => {
+            const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+            totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * (item.qty || 1);
+          });
+        }
+      });
+      const grossProfit = Math.max(0, totalRev - totalHpp);
+
+      const totalOpex = (state.financeDB?.logs || [])
+        .filter((l) => l.type === "Biaya Operasional")
+        .reduce((acc, l) => acc + Number(l.amount || 0), 0);
+
+      const netProfit = grossProfit - totalOpex;
+
+      const confirm = await showThemedConfirm(
+        "Tutup Buku Bulanan",
+        `Periode: ${monthName}\n\n• Omzet Penjualan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor: Rp ${grossProfit.toLocaleString("id-ID")}\n• Biaya Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Estimasi Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")}\n\nLakukan pembukuan tutup buku periode ini?`,
+        "Proses Tutup Buku",
+        "Batal"
+      );
+
+      if (!confirm) return;
+
+      const fullDateTimeStr = `${now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+      if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+      state.financeDB.logs.unshift({
+        id: `FIN-CLOSE-M-${Date.now()}`,
+        time: fullDateTimeStr,
+        type: "Tutup Buku Bulanan",
+        amount: netProfit,
+        note: `Tutup Buku ${monthName} (Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")})`,
+        admin: state.currentUser ? state.currentUser.name : "Admin"
+      });
+
+      persistFinance();
+      renderFinanceDashboard();
+      debouncedUpdateMetrics();
+      await showThemedAlert("Tutup Buku Selesai", `Tutup buku bulanan untuk ${monthName} berhasil dibukukan ke log keuangan.`, "info");
+    };
+  }
+
+  const btnAnnualClosing = document.getElementById("btnAnnualClosingFinance");
+  if (btnAnnualClosing) {
+    btnAnnualClosing.onclick = async () => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+
+      const yearSales = state.salesTransactions.filter((t) => {
+        if (t.status === "Dibatalkan") return false;
+        const d = t.timestamp ? new Date(t.timestamp) : new Date();
+        return d.getFullYear() === currentYear;
+      });
+
+      const totalRev = yearSales.reduce((acc, t) => acc + (t.total || 0), 0);
+      let totalHpp = 0;
+      yearSales.forEach((trx) => {
+        if (Array.isArray(trx.items)) {
+          trx.items.forEach((item) => {
+            const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+            totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * (item.qty || 1);
+          });
+        }
+      });
+      const grossProfit = Math.max(0, totalRev - totalHpp);
+
+      const totalOpex = (state.financeDB?.logs || [])
+        .filter((l) => l.type === "Biaya Operasional")
+        .reduce((acc, l) => acc + Number(l.amount || 0), 0);
+
+      const netProfit = grossProfit - totalOpex;
+
+      const confirm = await showThemedConfirm(
+        "Tutup Buku Tahunan",
+        `Tahun Buku: ${currentYear}\n\n• Total Omzet Tahunan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor Tahunan: Rp ${grossProfit.toLocaleString("id-ID")}\n• Beban Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Akumulasi Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")}\n\nLakukan tutup buku tahunan untuk membukukan laporan akhir tahun?`,
+        "Tutup Buku Tahunan",
+        "Batal"
+      );
+
+      if (!confirm) return;
+
+      const fullDateTimeStr = `${now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+      if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+      state.financeDB.logs.unshift({
+        id: `FIN-CLOSE-Y-${Date.now()}`,
+        time: fullDateTimeStr,
+        type: "Tutup Buku Tahunan",
+        amount: netProfit,
+        note: `Tutup Buku Tahun ${currentYear} (Total Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")})`,
+        admin: state.currentUser ? state.currentUser.name : "Admin"
+      });
+
+      persistFinance();
+      renderFinanceDashboard();
+      debouncedUpdateMetrics();
+      await showThemedAlert("Tutup Buku Tahunan Selesai", `Tutup buku tahunan periode ${currentYear} berhasil dibukukan ke log keuangan.`, "info");
+    };
+  }
+
+  const btnResetFinance = document.getElementById("btnResetFinanceData");
+  if (btnResetFinance) {
+    btnResetFinance.onclick = async () => {
+      const ok = await showThemedConfirm(
+        "Reset Data Keuangan",
+        "PERINGATAN! Semua riwayat mutasi kas akan dihapus dan saldo kas fisik toko akan dikembalikan ke Rp 0.",
+        "Reset Keuangan",
+        "Batal"
+      );
+      if (!ok) return;
+
+      const conf = await showThemedPrompt("Konfirmasi Reset", "Ketik kata 'RESET' dengan huruf kapital untuk menyetujui:", "", "Ketik RESET");
+      if (conf === "RESET") {
+        state.financeDB = { cashBalance: 0, logs: [] };
+        persistFinance();
+        renderFinanceDashboard();
+        debouncedUpdateMetrics();
+        showScanToast("Data keuangan dan kas fisik di-reset");
+      } else {
+        showScanToast("Reset keuangan dibatalkan");
+      }
+    };
   }
 
   initMasterItModule();
@@ -674,6 +822,7 @@ function openSettingsSubMenu(subId) {
   document.getElementById("panelSubProfile")?.classList.add("hidden");
   document.getElementById("panelSubPrinterSettings")?.classList.add("hidden");
   document.getElementById("panelSubPosSettings")?.classList.add("hidden");
+  document.getElementById("panelSubFinanceSettings")?.classList.add("hidden");
   document.getElementById("panelSubMasterIt")?.classList.add("hidden");
   document.getElementById("panelSubBackup")?.classList.add("hidden");
 
@@ -693,6 +842,9 @@ function openSettingsSubMenu(subId) {
     document.getElementById("panelSubPosSettings")?.classList.remove("hidden");
     title = "Operasional Kasir";
     renderOperationalToggles();
+  } else if (subId === "subFinanceSettings") {
+    document.getElementById("panelSubFinanceSettings")?.classList.remove("hidden");
+    title = "Tutup Buku & Kas";
   } else if (subId === "subMasterIt") {
     document.getElementById("panelSubMasterIt")?.classList.remove("hidden");
     title = "Master IT Panel";
@@ -746,7 +898,6 @@ function initMasterItModule() {
     btnBackMasterIt.onclick = () => closeMasterItSubMenu();
   }
 
-  // Event Delegation: Tabel Akun IT (Edit Password & Hapus)
   const itAccountsTbody = document.getElementById("itAccountsTableBody");
   if (itAccountsTbody) {
     itAccountsTbody.addEventListener("click", async (e) => {
@@ -781,7 +932,6 @@ function initMasterItModule() {
     });
   }
 
-  // Event Delegation: Kartu Modul Fitur IT
   const itFeaturesContainer = document.getElementById("itFeatureCardsList");
   if (itFeaturesContainer) {
     itFeaturesContainer.addEventListener("change", (e) => {
@@ -828,7 +978,6 @@ function initMasterItModule() {
     });
   }
 
-  // Event Delegation: Tabel Console IT
   const consoleTbody = document.getElementById("consoleDataTableBody");
   if (consoleTbody) {
     consoleTbody.addEventListener("click", async (e) => {
