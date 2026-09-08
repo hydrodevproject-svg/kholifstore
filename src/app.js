@@ -984,10 +984,10 @@ function renderItFeaturesCards() {
         </div>
       </div>
     `;
-    itFeatureCardsList.appendChild(card);
+    container.appendChild(card);
   });
 
-  itFeatureCardsList.querySelectorAll(".it-toggle-enable").forEach((sw) => {
+  container.querySelectorAll(".it-toggle-enable").forEach((sw) => {
     sw.onchange = () => {
       const id = sw.getAttribute("data-id");
       state.featuresConfig[id].enabled = sw.checked;
@@ -997,7 +997,7 @@ function renderItFeaturesCards() {
     };
   });
 
-  itFeatureCardsList.querySelectorAll(".it-toggle-role").forEach((sw) => {
+  container.querySelectorAll(".it-toggle-role").forEach((sw) => {
     sw.onchange = () => {
       const id = sw.getAttribute("data-id");
       const role = sw.getAttribute("data-role");
@@ -1012,7 +1012,7 @@ function renderItFeaturesCards() {
     };
   });
 
-  itFeatureCardsList.querySelectorAll(".btn-eliminate-module").forEach((btn) => {
+  container.querySelectorAll(".btn-eliminate-module").forEach((btn) => {
     btn.onclick = async () => {
       const id = btn.getAttribute("data-id");
       const ok = await showThemedConfirm("Eliminasi Modul", `Eliminasi fitur "${state.featuresConfig[id].name}"?`);
