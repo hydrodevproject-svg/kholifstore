@@ -81,3 +81,13 @@ export function normalizePhoneNumber(raw) {
   }
   return clean;
 }
+
+// Fungsi Hash Kriptografi SHA-256 untuk perlindungan kata sandi akun kasir & admin
+export async function hashPassword(text) {
+  if (!text) return "";
+  const encoder = new TextEncoder();
+  const data = encoder.encode(String(text));
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
