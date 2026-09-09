@@ -82,8 +82,7 @@ export function initPurchasesModule() {
       const pId = Number(card.getAttribute("data-product-id"));
       const prod = state.productsDB.find((p) => p && p.id === pId);
       if (prod) {
-        activeSelectedProduct = prod;
-        openPurchItemDetailModal(prod);
+        selectPurchProductFromScanner(prod);
       }
     });
   }
@@ -92,6 +91,11 @@ export function initPurchasesModule() {
   initEditPurchaseEvents();
   renderPurchasesTable();
   renderSupplierDebtsTable();
+}
+
+export function selectPurchProductFromScanner(prod) {
+  activeSelectedProduct = prod;
+  openPurchItemDetailModal(prod);
 }
 
 export function refreshProductPriceFromBatches(prod) {
