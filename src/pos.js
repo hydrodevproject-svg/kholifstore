@@ -21,25 +21,35 @@ export function initPosModule() {
 
 export function deductProductStockFIFO(prod, deductQty) {
   let remaining = deductQty;
-  if (prod.batches && prod.batches.length > 0) {
+  let totalCost = 0;
+
+  if (prod.batches && Array.isArray(prod.batches) && prod.batches.length > 0) {
     for (let i = 0; i < prod.batches.length; i++) {
       const batch = prod.batches[i];
       if (batch.qty > 0) {
-        if (batch.qty >= remaining) {
-          batch.qty -= remaining;
-          remaining = 0;
-          break;
-        } else {
-          remaining -= batch.qty;
-          batch.qty = 0;
-        }
+        const take = Math.min(batch.qty, remaining);
+        const unitCost = Number(batch.buyPrice) || Number(prod.costPrice) || 0;
+        totalCost += take * unitCost;
+        batch.qty -= take;
+        remaining -= take;
+        if (remaining <= 0) break;
       }
     }
     prod.stock = prod.batches.reduce((sum, b) => sum + b.qty, 0);
     refreshProductPriceFromBatches(prod);
   } else {
     prod.stock = Math.max(0, (prod.stock || 0) - deductQty);
+    totalCost = deductQty * (Number(prod.costPrice) || 0);
+    remaining = 0;
   }
+
+  // Jika stok fisik melebihi sisa batch yang tercatat
+  if (remaining > 0) {
+    totalCost += remaining * (Number(prod.costPrice) || 0);
+  }
+
+  const avgCostPrice = deductQty > 0 ? Math.round(totalCost / deductQty) : (Number(prod.costPrice) || 0);
+  return { totalCost, avgCostPrice };
 }
 
 export function renderCategories() {
@@ -215,7 +225,7 @@ export function renderCart() {
   }
 
   const baseAfterDiscount = Math.max(0, subtotal - discountDeduction);
-  const isPpnActive = state.featuresConfig.feat_pajak?.enabled;
+  const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
   const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
   const tax = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
   const grandTotal = baseAfterDiscount + tax;
@@ -427,13 +437,24 @@ function initPosEvents() {
     btnFinishTransaction.onclick = async () => {
       const payMethod = document.getElementById("payMethodSelect");
       const inputPaidEl = document.getElementById("inputPaid");
-      const valGrandTotal = document.getElementById("valGrandTotal");
-      const valSubtotal = document.getElementById("valSubtotal");
-
       const paymentMethod = payMethod ? payMethod.value : "Tunai";
+
+      // 1. Kalkulasi angka transaksi murni dari memori state (Bebas dari manipulasi regex teks UI)
+      const subtotalNum = state.cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
+
+      let appliedDiscount = state.currentDiscountNominal;
+      if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
+        appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
+      }
+      appliedDiscount = Math.min(subtotalNum, appliedDiscount);
+
+      const baseAfterDiscount = Math.max(0, subtotalNum - appliedDiscount);
+      const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
+      const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
+      const taxNum = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
+      const grandTotalNum = baseAfterDiscount + taxNum;
+
       const rawPaid = inputPaidEl ? parseInt(inputPaidEl.value.replace(/\D/g, ""), 10) || 0 : 0;
-      const grandTotalNum = parseInt(valGrandTotal ? valGrandTotal.textContent.replace(/\D/g, "") : "0", 10) || 0;
-      const subtotalNum = parseInt(valSubtotal ? valSubtotal.textContent.replace(/\D/g, "") : "0", 10) || 0;
 
       if (paymentMethod === "Piutang / Kasbon") {
         if (!state.currentAttachedMember) {
@@ -442,17 +463,44 @@ function initPosEvents() {
         }
         const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
         if (mbr) {
-          mbr.debt += grandTotalNum;
+          mbr.debt = (Number(mbr.debt) || 0) + grandTotalNum;
           persistMembers();
+        }
+      } else if (paymentMethod === "Transfer / QRIS") {
+        const paidAmount = rawPaid > 0 ? rawPaid : grandTotalNum;
+        if (paidAmount < grandTotalNum) {
+          await showThemedAlert("Nominal Kurang", "Nominal pembayaran QRIS belum mencukupi total tagihan belanja!", "error");
+          return;
         }
       } else if (rawPaid < grandTotalNum) {
         await showThemedAlert("Nominal Kurang", "Uang yang diterima kasir belum mencukupi total tagihan belanja!", "error");
         return;
       }
 
+      // 2. Potong stok gudang FIFO dan simpan HPP historis riil ke struk transaksi
+      const snapshotItems = [];
       state.cart.forEach((cartItem) => {
         const prod = state.productsDB.find((p) => p.id === cartItem.id);
-        if (prod) deductProductStockFIFO(prod, cartItem.qty);
+        let itemCostData = { 
+          totalCost: (Number(cartItem.costPrice) || 0) * cartItem.qty, 
+          avgCostPrice: Number(cartItem.costPrice) || 0 
+        };
+
+        if (prod) {
+          itemCostData = deductProductStockFIFO(prod, cartItem.qty);
+        }
+
+        snapshotItems.push({
+          id: cartItem.id,
+          name: cartItem.name,
+          barcode: cartItem.barcode || "",
+          cat: cartItem.cat || "",
+          qty: cartItem.qty,
+          price: cartItem.price,
+          costPrice: itemCostData.avgCostPrice, // HPP riil satuan saat transaksi terjadi
+          totalCost: itemCostData.totalCost,    // Total modal barang pada transaksi ini
+          subtotal: cartItem.price * cartItem.qty
+        });
       });
       persistProducts();
 
@@ -460,7 +508,7 @@ function initPosEvents() {
         const earned = Math.floor(grandTotalNum / 1000);
         const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
         if (mbr) {
-          mbr.points += earned;
+          mbr.points = (Number(mbr.points) || 0) + earned;
           persistMembers();
         }
       }
@@ -471,20 +519,8 @@ function initPosEvents() {
       const clockFormatted = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
       const fullDateTimeStr = `${dayName}, ${dateFormatted} • ${clockFormatted}`;
       const trxId = `TRX-${Math.floor(1000 + Math.random() * 9000)}`;
-      const changeNum = Math.max(0, rawPaid - grandTotalNum);
-
-      const snapshotItems = state.cart.map((i) => ({
-        name: i.name,
-        qty: i.qty,
-        price: i.price,
-        subtotal: i.price * i.qty
-      }));
-
-      let appliedDiscount = state.currentDiscountNominal;
-      if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
-        appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
-      }
-      appliedDiscount = Math.min(subtotalNum, appliedDiscount);
+      const actualPaid = paymentMethod === "Transfer / QRIS" && rawPaid === 0 ? grandTotalNum : rawPaid;
+      const changeNum = Math.max(0, actualPaid - grandTotalNum);
 
       const attachedMemberClone = state.currentAttachedMember ? {
         id: state.currentAttachedMember.id,
@@ -510,8 +546,9 @@ function initPosEvents() {
       lastCompletedTrx = newTrx;
 
       state.salesTransactions.unshift(newTrx);
-      persistSales();
+      persistSales(newTrx);
 
+      // 3. Pencatatan Keuangan Terpisah: Kas Fisik vs Digital QRIS
       if (!state.financeDB) {
         state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
       }
@@ -560,7 +597,7 @@ function initPosEvents() {
       if (succTrxInfo) succTrxInfo.textContent = `${trxId} • ${fullDateTimeStr}`;
       if (succCashierMember) succCashierMember.textContent = `${newTrx.cashier} ${newTrx.member ? `• ${newTrx.member.name}` : ""}`;
       if (succTotal) succTotal.textContent = `Rp ${grandTotalNum.toLocaleString("id-ID")}`;
-      if (succPaid) succPaid.textContent = paymentMethod === "Piutang / Kasbon" ? "Kasbon (Tempo)" : `Rp ${rawPaid.toLocaleString("id-ID")}`;
+      if (succPaid) succPaid.textContent = paymentMethod === "Piutang / Kasbon" ? "Kasbon (Tempo)" : `Rp ${actualPaid.toLocaleString("id-ID")}`;
       if (succChange) succChange.textContent = `Rp ${changeNum.toLocaleString("id-ID")}`;
 
       playCashChime();
