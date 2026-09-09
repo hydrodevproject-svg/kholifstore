@@ -76,12 +76,16 @@ export function closeFinanceSubMenu() {
 
 export function renderFinanceDashboard() {
   const statCash = document.getElementById("finStatCashOnHand");
+  const statDigital = document.getElementById("finStatDigitalBalance");
   const statAsset = document.getElementById("finStatInventoryAsset");
   const tbody = document.getElementById("financeLogsTableBody");
   const badgeLogs = document.getElementById("badgeTotalFinLogs");
 
-  const currentCash = state.financeDB.cashBalance || 0;
+  const currentCash = state.financeDB?.cashBalance || 0;
+  const currentDigital = state.financeDB?.digitalBalance || 0;
+
   if (statCash) statCash.textContent = `Rp ${currentCash.toLocaleString("id-ID")}`;
+  if (statDigital) statDigital.textContent = `Rp ${currentDigital.toLocaleString("id-ID")}`;
 
   // Hitung total nilai modal fisik persediaan
   let totalAsset = 0;
@@ -95,7 +99,7 @@ export function renderFinanceDashboard() {
 
   if (statAsset) statAsset.textContent = `Rp ${totalAsset.toLocaleString("id-ID")}`;
 
-  const logs = state.financeDB.logs || [];
+  const logs = state.financeDB?.logs || [];
   if (badgeLogs) badgeLogs.textContent = `${logs.length} Mutasi`;
 
   if (!tbody) return;
