@@ -19,7 +19,6 @@ export function initPurchasesModule() {
     };
   });
 
-  // Event Delegation: Edit Faktur Pembelian
   const purchTbody = document.getElementById("purchaseTableBody");
   if (purchTbody) {
     purchTbody.addEventListener("click", (e) => {
@@ -30,7 +29,7 @@ export function initPurchasesModule() {
     });
   }
 
-  // Event Delegation: Pelunasan Hutang Supplier
+  // Pelunasan Hutang Supplier: Memperbarui seluruh item yang memiliki no faktur sama
   const debtTbody = document.getElementById("supplierDebtTableBody");
   if (debtTbody) {
     debtTbody.addEventListener("click", async (e) => {
@@ -41,15 +40,16 @@ export function initPurchasesModule() {
 
       const inputVal = await showThemedPrompt(
         "Pelunasan Hutang Supplier",
-        `Sisa hutang kepada ${debt.supplier}: Rp ${debt.remainingDebt.toLocaleString("id-ID")}\nMasukkan nominal yang dibayar:`,
+        `Sisa hutang kepada ${debt.supplier}: Rp ${Number(debt.remainingDebt || 0).toLocaleString("id-ID")}\nMasukkan nominal yang dibayar:`,
         debt.remainingDebt
       );
       const paid = parseInt(inputVal, 10);
       if (paid > 0) {
         debt.remainingDebt = Math.max(0, debt.remainingDebt - paid);
         if (debt.remainingDebt === 0) {
-          const matched = state.purchasesDB.find((p) => p.nota === debt.nota);
-          if (matched) matched.paidStatus = "Lunas";
+          state.purchasesDB.forEach((p) => {
+            if (p.nota === debt.nota) p.paidStatus = "Lunas";
+          });
           persistPurchases();
           renderPurchasesTable();
         }
@@ -60,7 +60,6 @@ export function initPurchasesModule() {
     });
   }
 
-  // Event Delegation: Hapus Barang dari Draf Faktur
   const itemsContainer = document.getElementById("purchItemsListContainer");
   if (itemsContainer) {
     itemsContainer.addEventListener("click", (e) => {
@@ -73,7 +72,6 @@ export function initPurchasesModule() {
     });
   }
 
-  // Event Delegation: Pemilih Barang Masuk (Picker)
   const pickerOptionsList = document.getElementById("purchProductOptionsList");
   if (pickerOptionsList) {
     pickerOptionsList.addEventListener("click", (e) => {
@@ -125,19 +123,23 @@ export function renderPurchasesTable() {
     return;
   }
 
-  tbody.innerHTML = state.purchasesDB.map((p) => `
-    <tr>
-      <td><strong>${p.nota}</strong><br><small style="color:var(--text-secondary);">${p.id}</small></td>
-      <td><strong>${p.supplier}</strong></td>
-      <td>${p.productName}<br><small style="color:var(--text-secondary);">${p.qty} pcs • Exp: ${p.expireDate || '-'}</small></td>
-      <td>Rp ${p.costPrice.toLocaleString("id-ID")}</td>
-      <td><strong>Rp ${p.sellPrice.toLocaleString("id-ID")}</strong></td>
-      <td><span class="badge-mono ${p.paidStatus === 'Lunas' ? 'badge-exp-safe' : 'badge-exp-danger'}">${p.paidStatus}</span></td>
-      <td style="text-align: right;">
-        <button type="button" class="btn-table-action btn-edit-purch" data-id="${p.id}">Edit</button>
-      </td>
-    </tr>
-  `).join("");
+  tbody.innerHTML = state.purchasesDB.map((p) => {
+    const costPrice = Number(p.costPrice || 0);
+    const sellPrice = Number(p.sellPrice || 0);
+    return `
+      <tr>
+        <td><strong>${p.nota}</strong><br><small style="color:var(--text-secondary);">${p.id}</small></td>
+        <td><strong>${p.supplier}</strong></td>
+        <td>${p.productName}<br><small style="color:var(--text-secondary);">${p.qty} pcs • Exp: ${p.expireDate || '-'}</small></td>
+        <td>Rp ${costPrice.toLocaleString("id-ID")}</td>
+        <td><strong>Rp ${sellPrice.toLocaleString("id-ID")}</strong></td>
+        <td><span class="badge-mono ${p.paidStatus === 'Lunas' ? 'badge-exp-safe' : 'badge-exp-danger'}">${p.paidStatus}</span></td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-table-action btn-edit-purch" data-id="${p.id}">Edit</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 export function renderSupplierDebtsTable() {
@@ -154,8 +156,8 @@ export function renderSupplierDebtsTable() {
       <td><strong>${d.supplier}</strong></td>
       <td>${d.nota}</td>
       <td><span class="badge-mono">${d.dueDate || '-'}</span></td>
-      <td>Rp ${d.total.toLocaleString("id-ID")}</td>
-      <td><strong style="color:var(--brand-danger);">Rp ${d.remainingDebt.toLocaleString("id-ID")}</strong></td>
+      <td>Rp ${Number(d.total || 0).toLocaleString("id-ID")}</td>
+      <td><strong style="color:var(--brand-danger);">Rp ${Number(d.remainingDebt || 0).toLocaleString("id-ID")}</strong></td>
       <td style="text-align: right;">
         <button type="button" class="btn-table-action btn-pay-supplier-debt" data-id="${d.id}">Bayar Hutang</button>
       </td>
@@ -187,7 +189,6 @@ function initAddPurchaseEvents() {
       tempPurchaseItems = [];
       renderPurchaseItemsList();
       if (wrapPurchDueDate) wrapPurchDueDate.classList.add("hidden");
-      
       if (inNota) inNota.value = generateAutoFaktur();
 
       purchaseScreen?.classList.add("active");
@@ -561,13 +562,18 @@ function initEditPurchaseEvents() {
       purch.paidStatus = paymentMethod === "Hutang" ? "Belum Lunas" : "Lunas";
       persistPurchases();
 
+      // Rekalkulasi total hutang seluruh item pada faktur ini
+      const invoiceTotal = state.purchasesDB
+        .filter((p) => p.nota === newNota)
+        .reduce((sum, item) => sum + Number(item.total || 0), 0);
+
       const debt = state.supplierDebtsDB.find((d) => d.nota === oldNota);
       if (debt) {
         if (paymentMethod === "Hutang") {
           debt.nota = newNota;
           debt.supplier = purch.supplier;
-          debt.total = purch.total;
-          debt.remainingDebt = purch.total;
+          debt.total = invoiceTotal;
+          debt.remainingDebt = invoiceTotal;
           debt.dueDate = dueDate;
         } else {
           state.supplierDebtsDB = state.supplierDebtsDB.filter((d) => d.nota !== oldNota);
@@ -578,8 +584,8 @@ function initEditPurchaseEvents() {
           id: `DEBT-${Date.now()}`,
           nota: newNota,
           supplier: purch.supplier,
-          total: purch.total,
-          remainingDebt: purch.total,
+          total: invoiceTotal,
+          remainingDebt: invoiceTotal,
           dueDate
         });
         persistSupplierDebts();
