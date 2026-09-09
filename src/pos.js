@@ -1,6 +1,6 @@
 // src/pos.js
 import { state, persistProducts, persistSales, persistMembers, persistFinance } from "./state.js";
-import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
+import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, playCashChime, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { refreshProductPriceFromBatches } from "./purchases.js";
@@ -10,6 +10,7 @@ import { renderReports } from "./reports.js";
 import { renderFinanceDashboard } from "./finance.js";
 
 let lastCompletedTrx = null;
+let isSubmittingTransaction = false;
 const MAX_POS_PRODUCTS_RENDER = 60;
 
 export function initPosModule() {
@@ -346,12 +347,19 @@ function initPosEvents() {
       const valGrandTotal = document.getElementById("valGrandTotal");
       const inputPaid = document.getElementById("inputPaid");
       const valChange = document.getElementById("valChange");
+      const payMethodSelect = document.getElementById("payMethodSelect");
       const payPageScreen = document.getElementById("payPageScreen");
 
       if (payFormView) payFormView.classList.remove("hidden");
       if (paySuccessView) paySuccessView.classList.add("hidden");
       if (payTotalBig && valGrandTotal) payTotalBig.textContent = valGrandTotal.textContent;
-      if (inputPaid) inputPaid.value = "";
+
+      // Reset metode bayar dan input tunai ke default
+      if (payMethodSelect) payMethodSelect.value = "Tunai";
+      if (inputPaid) {
+        inputPaid.value = "";
+        inputPaid.readOnly = false;
+      }
       if (valChange) {
         valChange.textContent = "Rp 0";
         valChange.style.color = "var(--text-primary)";
@@ -379,19 +387,28 @@ function initPosEvents() {
       const totalStr = valGrandTotal ? valGrandTotal.textContent : "Rp 0";
 
       if (payMethodSelect.value === "Transfer / QRIS") {
-        if (inputPaid) inputPaid.value = totalStr;
+        if (inputPaid) {
+          inputPaid.value = totalStr;
+          inputPaid.readOnly = false;
+        }
         if (valChange) {
           valChange.textContent = "Rp 0";
           valChange.style.color = "var(--text-primary)";
         }
       } else if (payMethodSelect.value === "Piutang / Kasbon") {
-        if (inputPaid) inputPaid.value = "Kasbon (Tempo)";
+        if (inputPaid) {
+          inputPaid.value = "Kasbon (Tempo)";
+          inputPaid.readOnly = true;
+        }
         if (valChange) {
           valChange.textContent = "Rp 0";
           valChange.style.color = "var(--text-primary)";
         }
       } else {
-        if (inputPaid) inputPaid.value = "";
+        if (inputPaid) {
+          inputPaid.value = "";
+          inputPaid.readOnly = false;
+        }
         if (valChange) {
           valChange.textContent = "Rp 0";
           valChange.style.color = "var(--text-primary)";
@@ -403,6 +420,11 @@ function initPosEvents() {
   const inputPaid = document.getElementById("inputPaid");
   if (inputPaid) {
     inputPaid.addEventListener("input", (e) => {
+      if (payMethodSelect && payMethodSelect.value === "Piutang / Kasbon") {
+        e.target.value = "Kasbon (Tempo)";
+        return;
+      }
+
       const raw = e.target.value.replace(/\D/g, "");
       const valChange = document.getElementById("valChange");
       const valGrandTotal = document.getElementById("valGrandTotal");
@@ -434,194 +456,210 @@ function initPosEvents() {
   const btnFinishTransaction = document.getElementById("btnFinishTransaction");
   if (btnFinishTransaction) {
     btnFinishTransaction.onclick = async () => {
-      const payMethod = document.getElementById("payMethodSelect");
-      const inputPaidEl = document.getElementById("inputPaid");
-      const paymentMethod = payMethod ? payMethod.value : "Tunai";
+      if (isSubmittingTransaction) return;
+      isSubmittingTransaction = true;
+      btnFinishTransaction.disabled = true;
 
-      const subtotalNum = state.cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
+      try {
+        const payMethod = document.getElementById("payMethodSelect");
+        const inputPaidEl = document.getElementById("inputPaid");
+        const paymentMethod = payMethod ? payMethod.value : "Tunai";
 
-      let appliedDiscount = state.currentDiscountNominal;
-      if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
-        appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
-      }
-      appliedDiscount = Math.min(subtotalNum, appliedDiscount);
+        const subtotalNum = state.cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
 
-      const baseAfterDiscount = Math.max(0, subtotalNum - appliedDiscount);
-      const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
-      const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
-      const taxNum = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
-      const grandTotalNum = baseAfterDiscount + taxNum;
+        let appliedDiscount = state.currentDiscountNominal;
+        if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
+          appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
+        }
+        appliedDiscount = Math.min(subtotalNum, appliedDiscount);
 
-      const rawPaid = inputPaidEl ? parseInt(inputPaidEl.value.replace(/\D/g, ""), 10) || 0 : 0;
+        const baseAfterDiscount = Math.max(0, subtotalNum - appliedDiscount);
+        const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
+        const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
+        const taxNum = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
+        const grandTotalNum = baseAfterDiscount + taxNum;
 
-      if (paymentMethod === "Piutang / Kasbon") {
-        if (!state.currentAttachedMember) {
-          await showThemedAlert("Pilih Member", "Pembayaran Kasbon hanya diperbolehkan jika data Member dipilih!", "error");
+        const rawPaid = inputPaidEl ? parseInt(inputPaidEl.value.replace(/\D/g, ""), 10) || 0 : 0;
+
+        if (paymentMethod === "Piutang / Kasbon") {
+          if (!state.currentAttachedMember) {
+            await showThemedAlert("Pilih Member", "Pembayaran Kasbon hanya diperbolehkan jika data Member dipilih!", "error");
+            return;
+          }
+          const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
+          if (mbr) {
+            mbr.debt = (Number(mbr.debt) || 0) + grandTotalNum;
+            persistMembers();
+          }
+        } else if (paymentMethod === "Transfer / QRIS") {
+          const paidAmount = rawPaid > 0 ? rawPaid : grandTotalNum;
+          if (paidAmount < grandTotalNum) {
+            await showThemedAlert("Nominal Kurang", "Nominal pembayaran QRIS belum mencukupi total tagihan belanja!", "error");
+            return;
+          }
+        } else if (rawPaid < grandTotalNum) {
+          await showThemedAlert("Nominal Kurang", "Uang yang diterima kasir belum mencukupi total tagihan belanja!", "error");
           return;
         }
-        const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
-        if (mbr) {
-          mbr.debt = (Number(mbr.debt) || 0) + grandTotalNum;
-          persistMembers();
-        }
-      } else if (paymentMethod === "Transfer / QRIS") {
-        const paidAmount = rawPaid > 0 ? rawPaid : grandTotalNum;
-        if (paidAmount < grandTotalNum) {
-          await showThemedAlert("Nominal Kurang", "Nominal pembayaran QRIS belum mencukupi total tagihan belanja!", "error");
-          return;
-        }
-      } else if (rawPaid < grandTotalNum) {
-        await showThemedAlert("Nominal Kurang", "Uang yang diterima kasir belum mencukupi total tagihan belanja!", "error");
-        return;
-      }
 
-      const snapshotItems = [];
-      state.cart.forEach((cartItem) => {
-        const prod = state.productsDB.find((p) => p.id === cartItem.id);
-        let itemCostData = { 
-          totalCost: (Number(cartItem.costPrice) || 0) * cartItem.qty, 
-          avgCostPrice: Number(cartItem.costPrice) || 0 
+        const snapshotItems = [];
+        const modifiedProducts = [];
+
+        state.cart.forEach((cartItem) => {
+          const prod = state.productsDB.find((p) => p.id === cartItem.id);
+          let itemCostData = { 
+            totalCost: (Number(cartItem.costPrice) || 0) * cartItem.qty, 
+            avgCostPrice: Number(cartItem.costPrice) || 0 
+          };
+
+          if (prod) {
+            itemCostData = deductProductStockFIFO(prod, cartItem.qty);
+            modifiedProducts.push(prod);
+          }
+
+          snapshotItems.push({
+            id: cartItem.id,
+            name: cartItem.name,
+            barcode: cartItem.barcode || "",
+            cat: cartItem.cat || "",
+            qty: cartItem.qty,
+            price: cartItem.price,
+            costPrice: itemCostData.avgCostPrice,
+            totalCost: itemCostData.totalCost,
+            subtotal: cartItem.price * cartItem.qty
+          });
+        });
+
+        // Tulis hanya produk yang mengalami perubahan stok ke Firestore
+        persistProducts(modifiedProducts);
+
+        if (state.currentAttachedMember) {
+          const earned = Math.floor(grandTotalNum / 1000);
+          const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
+          if (mbr) {
+            mbr.points = (Number(mbr.points) || 0) + earned;
+            persistMembers();
+          }
+        }
+
+        const now = new Date();
+        const dayName = now.toLocaleDateString("id-ID", { weekday: "long" });
+        const dateFormatted = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+        const clockFormatted = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        const fullDateTimeStr = `${dayName}, ${dateFormatted} • ${clockFormatted}`;
+
+        // ID Transaksi unik berbasis timestamp + 2 digit acak
+        const trxId = `TRX-${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+        const actualPaid = paymentMethod === "Transfer / QRIS" && rawPaid === 0 ? grandTotalNum : rawPaid;
+        const changeNum = Math.max(0, actualPaid - grandTotalNum);
+
+        const attachedMemberClone = state.currentAttachedMember ? {
+          id: state.currentAttachedMember.id,
+          name: state.currentAttachedMember.name,
+          phone: state.currentAttachedMember.phone || state.currentAttachedMember.wa || state.currentAttachedMember.telepon || "",
+          tier: state.currentAttachedMember.tier || ""
+        } : null;
+
+        const newTrx = {
+          id: trxId,
+          timestamp: Date.now(),
+          date: `${dayName}, ${dateFormatted}`,
+          time: fullDateTimeStr,
+          cashier: state.currentUser ? state.currentUser.name : "Kasir",
+          member: attachedMemberClone,
+          total: grandTotalNum,
+          discount: appliedDiscount,
+          paymentMethod,
+          items: snapshotItems,
+          status: "Sukses"
         };
 
-        if (prod) {
-          itemCostData = deductProductStockFIFO(prod, cartItem.qty);
+        lastCompletedTrx = newTrx;
+
+        state.salesTransactions.unshift(newTrx);
+        persistSales(newTrx);
+
+        if (!state.financeDB) {
+          state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+        }
+        if (state.financeDB.digitalBalance === undefined) {
+          state.financeDB.digitalBalance = 0;
+        }
+        if (state.financeDB.cashBalance === undefined) {
+          state.financeDB.cashBalance = 0;
+        }
+        if (!Array.isArray(state.financeDB.logs)) {
+          state.financeDB.logs = [];
         }
 
-        snapshotItems.push({
-          id: cartItem.id,
-          name: cartItem.name,
-          barcode: cartItem.barcode || "",
-          cat: cartItem.cat || "",
-          qty: cartItem.qty,
-          price: cartItem.price,
-          costPrice: itemCostData.avgCostPrice,
-          totalCost: itemCostData.totalCost,
-          subtotal: cartItem.price * cartItem.qty
-        });
-      });
-      persistProducts();
-
-      if (state.currentAttachedMember) {
-        const earned = Math.floor(grandTotalNum / 1000);
-        const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
-        if (mbr) {
-          mbr.points = (Number(mbr.points) || 0) + earned;
-          persistMembers();
+        if (paymentMethod === "Tunai") {
+          state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
+          state.financeDB.logs.unshift({
+            id: `FIN-${Date.now()}`,
+            time: fullDateTimeStr,
+            type: "Penjualan Kasir (Tunai)",
+            amount: grandTotalNum,
+            note: `Penerimaan Kasir Tunai: ${trxId}`,
+            admin: state.currentUser ? state.currentUser.name : "Kasir"
+          });
+          persistFinance();
+          renderFinanceDashboard();
+        } else if (paymentMethod === "Transfer / QRIS") {
+          state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + grandTotalNum;
+          state.financeDB.logs.unshift({
+            id: `FIN-${Date.now()}`,
+            time: fullDateTimeStr,
+            type: "Penjualan Kasir (QRIS)",
+            amount: grandTotalNum,
+            note: `Penerimaan Non-Tunai Bank/QRIS: ${trxId}`,
+            admin: state.currentUser ? state.currentUser.name : "Kasir"
+          });
+          persistFinance();
+          renderFinanceDashboard();
         }
+
+        const succTrxInfo = document.getElementById("succTrxInfo");
+        const succCashierMember = document.getElementById("succCashierMember");
+        const succTotal = document.getElementById("succTotal");
+        const succPaid = document.getElementById("succPaid");
+        const succChange = document.getElementById("succChange");
+
+        if (succTrxInfo) succTrxInfo.textContent = `${trxId} • ${fullDateTimeStr}`;
+        if (succCashierMember) succCashierMember.textContent = `${newTrx.cashier} ${newTrx.member ? `• ${newTrx.member.name}` : ""}`;
+        if (succTotal) succTotal.textContent = `Rp ${grandTotalNum.toLocaleString("id-ID")}`;
+        if (succPaid) succPaid.textContent = paymentMethod === "Piutang / Kasbon" ? "Kasbon (Tempo)" : `Rp ${actualPaid.toLocaleString("id-ID")}`;
+        if (succChange) succChange.textContent = `Rp ${changeNum.toLocaleString("id-ID")}`;
+
+        playCashChime();
+        const payFormView = document.getElementById("payFormView");
+        const paySuccessView = document.getElementById("paySuccessView");
+        if (payFormView) payFormView.classList.add("hidden");
+        if (paySuccessView) paySuccessView.classList.remove("hidden");
+
+        if (state.printerConfig.autoPrint) {
+          setTimeout(() => printThermalReceipt(newTrx), 300);
+        }
+
+        state.cart = [];
+        state.currentAttachedMember = null;
+        state.currentDiscountNominal = 0;
+        const posMemberName = document.getElementById("posMemberName");
+        const posMemberMeta = document.getElementById("posMemberMeta");
+        const btnClearMemberPos = document.getElementById("btnClearMemberPos");
+
+        if (posMemberName) posMemberName.textContent = "Pilih Member (No. HP / ID)";
+        if (posMemberMeta) posMemberMeta.textContent = "Dapatkan Poin & Diskon Khusus";
+        if (btnClearMemberPos) btnClearMemberPos.classList.add("hidden");
+
+        renderCart();
+        renderProducts();
+        renderAllInventoryData();
+        renderAllMemberData();
+        renderReports();
+      } finally {
+        isSubmittingTransaction = false;
+        btnFinishTransaction.disabled = false;
       }
-
-      const now = new Date();
-      const dayName = now.toLocaleDateString("id-ID", { weekday: "long" });
-      const dateFormatted = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-      const clockFormatted = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-      const fullDateTimeStr = `${dayName}, ${dateFormatted} • ${clockFormatted}`;
-      const trxId = `TRX-${Math.floor(1000 + Math.random() * 9000)}`;
-      const actualPaid = paymentMethod === "Transfer / QRIS" && rawPaid === 0 ? grandTotalNum : rawPaid;
-      const changeNum = Math.max(0, actualPaid - grandTotalNum);
-
-      const attachedMemberClone = state.currentAttachedMember ? {
-        id: state.currentAttachedMember.id,
-        name: state.currentAttachedMember.name,
-        phone: state.currentAttachedMember.phone || state.currentAttachedMember.wa || state.currentAttachedMember.telepon || "",
-        tier: state.currentAttachedMember.tier || ""
-      } : null;
-
-      const newTrx = {
-        id: trxId,
-        timestamp: Date.now(),
-        date: `${dayName}, ${dateFormatted}`,
-        time: fullDateTimeStr,
-        cashier: state.currentUser ? state.currentUser.name : "Kasir",
-        member: attachedMemberClone,
-        total: grandTotalNum,
-        discount: appliedDiscount,
-        paymentMethod,
-        items: snapshotItems,
-        status: "Sukses"
-      };
-
-      lastCompletedTrx = newTrx;
-
-      state.salesTransactions.unshift(newTrx);
-      persistSales(newTrx);
-
-      if (!state.financeDB) {
-        state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
-      }
-      if (state.financeDB.digitalBalance === undefined) {
-        state.financeDB.digitalBalance = 0;
-      }
-      if (state.financeDB.cashBalance === undefined) {
-        state.financeDB.cashBalance = 0;
-      }
-      if (!Array.isArray(state.financeDB.logs)) {
-        state.financeDB.logs = [];
-      }
-
-      if (paymentMethod === "Tunai") {
-        state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
-        state.financeDB.logs.unshift({
-          id: `FIN-${Date.now()}`,
-          time: fullDateTimeStr,
-          type: "Penjualan Kasir (Tunai)",
-          amount: grandTotalNum,
-          note: `Penerimaan Kasir Tunai: ${trxId}`,
-          admin: state.currentUser ? state.currentUser.name : "Kasir"
-        });
-        persistFinance();
-        renderFinanceDashboard();
-      } else if (paymentMethod === "Transfer / QRIS") {
-        state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + grandTotalNum;
-        state.financeDB.logs.unshift({
-          id: `FIN-${Date.now()}`,
-          time: fullDateTimeStr,
-          type: "Penjualan Kasir (QRIS)",
-          amount: grandTotalNum,
-          note: `Penerimaan Non-Tunai Bank/QRIS: ${trxId}`,
-          admin: state.currentUser ? state.currentUser.name : "Kasir"
-        });
-        persistFinance();
-        renderFinanceDashboard();
-      }
-
-      const succTrxInfo = document.getElementById("succTrxInfo");
-      const succCashierMember = document.getElementById("succCashierMember");
-      const succTotal = document.getElementById("succTotal");
-      const succPaid = document.getElementById("succPaid");
-      const succChange = document.getElementById("succChange");
-
-      if (succTrxInfo) succTrxInfo.textContent = `${trxId} • ${fullDateTimeStr}`;
-      if (succCashierMember) succCashierMember.textContent = `${newTrx.cashier} ${newTrx.member ? `• ${newTrx.member.name}` : ""}`;
-      if (succTotal) succTotal.textContent = `Rp ${grandTotalNum.toLocaleString("id-ID")}`;
-      if (succPaid) succPaid.textContent = paymentMethod === "Piutang / Kasbon" ? "Kasbon (Tempo)" : `Rp ${actualPaid.toLocaleString("id-ID")}`;
-      if (succChange) succChange.textContent = `Rp ${changeNum.toLocaleString("id-ID")}`;
-
-      playCashChime();
-      const payFormView = document.getElementById("payFormView");
-      const paySuccessView = document.getElementById("paySuccessView");
-      if (payFormView) payFormView.classList.add("hidden");
-      if (paySuccessView) paySuccessView.classList.remove("hidden");
-
-      if (state.printerConfig.autoPrint) {
-        setTimeout(() => printThermalReceipt(newTrx), 300);
-      }
-
-      state.cart = [];
-      state.currentAttachedMember = null;
-      state.currentDiscountNominal = 0;
-      const posMemberName = document.getElementById("posMemberName");
-      const posMemberMeta = document.getElementById("posMemberMeta");
-      const btnClearMemberPos = document.getElementById("btnClearMemberPos");
-
-      if (posMemberName) posMemberName.textContent = "Pilih Member (No. HP / ID)";
-      if (posMemberMeta) posMemberMeta.textContent = "Dapatkan Poin & Diskon Khusus";
-      if (btnClearMemberPos) btnClearMemberPos.classList.add("hidden");
-
-      renderCart();
-      renderProducts();
-      renderAllInventoryData();
-      renderAllMemberData();
-      renderReports();
     };
   }
 
@@ -671,7 +709,10 @@ function initPosEvents() {
       window.history.back();
       document.getElementById("orderPanel")?.classList.remove("mobile-open");
       const fab = document.getElementById("btnOpenCartMobile");
-      if (fab) fab.style.display = "flex";
+      if (fab && !document.body.classList.contains("mode-tablet")) {
+        fab.classList.remove("hidden");
+        fab.style.display = "flex";
+      }
     };
   }
 
@@ -680,9 +721,19 @@ function initPosEvents() {
 
   const btnTahan = document.getElementById("btnTahan");
   if (btnTahan) {
-    btnTahan.onclick = () => {
+    btnTahan.onclick = async () => {
       const lbl = document.getElementById("lblTahanBtn");
       if (state.cart.length > 0) {
+        if (state.savedHeldCart && state.savedHeldCart.cart.length > 0) {
+          const confirmOverwrite = await showThemedConfirm(
+            "Timpa Pesanan Tertahan?",
+            "Sudah ada pesanan yang ditahan sebelumnya. Jika Anda menahan keranjang saat ini, pesanan tertahan sebelumnya akan terganti.",
+            "Timpa Pesanan",
+            "Batal"
+          );
+          if (!confirmOverwrite) return;
+        }
+
         state.savedHeldCart = {
           cart: [...state.cart],
           member: state.currentAttachedMember,
@@ -715,7 +766,7 @@ function initPosEvents() {
     };
   }
 
-  // PENANGANAN TOMBOL APUNG KERANJANG DI HP
+  // Penanganan tombol apung keranjang di HP
   const btnOpenCartMobile = document.getElementById("btnOpenCartMobile");
   const orderPanel = document.getElementById("orderPanel");
 
@@ -730,7 +781,10 @@ function initPosEvents() {
   if (btnCloseCartMobile) {
     btnCloseCartMobile.onclick = () => {
       orderPanel?.classList.remove("mobile-open");
-      if (btnOpenCartMobile) btnOpenCartMobile.style.display = "flex";
+      if (btnOpenCartMobile && !document.body.classList.contains("mode-tablet")) {
+        btnOpenCartMobile.classList.remove("hidden");
+        btnOpenCartMobile.style.display = "flex";
+      }
     };
   }
 }
