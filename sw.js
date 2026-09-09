@@ -1,5 +1,5 @@
 // sw.js - Service Worker Kholif Store POS
-const CACHE_NAME = "kholif-pos-cache-v2026-v5";
+const CACHE_NAME = "kholif-pos-cache-v2026-v6";
 
 const APP_SHELL_ASSETS = [
   "./",
