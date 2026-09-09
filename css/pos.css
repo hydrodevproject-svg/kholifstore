@@ -52,16 +52,23 @@ body.mode-mobile .cat-pill.active {
   color: #ffffff !important;
 }
 
+/* PANEL KERANJANG DI HP: Menggunakan dvh & z-index tinggi agar tombol bayar selalu terlihat */
 body.mode-mobile .order-panel {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100dvh;
+  max-height: 100dvh;
   background-color: var(--bg-canvas) !important;
-  z-index: 2500;
+  z-index: 3100; /* Lebih tinggi dari navbar dan floating cart */
   display: flex;
   flex-direction: column;
   transform: translate3d(0, 100%, 0);
   transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
+  overflow: hidden;
 }
 
 body.mode-mobile .order-panel.mobile-open {
@@ -138,7 +145,7 @@ body.mode-tablet .mobile-cart-fab {
   display: none !important;
 }
 
-/* ================= ITEM PRODUK MOBILE EFISIEN (OPTIMIZED) ================= */
+/* ================= ITEM PRODUK MOBILE EFISIEN ================= */
 .products-section {
   flex: 1;
   overflow-y: auto;
@@ -334,6 +341,7 @@ body.mode-tablet .mobile-cart-fab {
   background-color: #f8fafc !important;
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .member-pos-info {
@@ -403,7 +411,7 @@ body.mode-tablet .mobile-cart-fab {
   gap: 6px;
   background-color: var(--bg-canvas) !important;
   -webkit-overflow-scrolling: touch;
-  contain: layout;
+  min-height: 0; /* Mencegah item mendorong summary keluar */
 }
 
 .order-card-item {
@@ -415,7 +423,7 @@ body.mode-tablet .mobile-cart-fab {
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 8px;
-  contain: layout;
+  flex-shrink: 0;
   transform: translateZ(0);
 }
 
@@ -495,15 +503,16 @@ body.mode-tablet .mobile-cart-fab {
   margin-bottom: 6px;
 }
 
+/* RINGKASAN & TOMBOL BAYAR: Menggunakan safe-area-inset agar tidak terpotong tombol sistem HP */
 .order-summary {
-  padding: 10px 12px;
+  padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px));
   background-color: var(--surface) !important;
   border-top: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
-  contain: layout paint;
+  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.04);
 }
 
 .summary-line {
@@ -541,7 +550,7 @@ body.mode-tablet .mobile-cart-fab {
 
 .btn-checkout {
   margin-top: 6px;
-  height: 42px;
+  height: 44px;
   background: var(--brand-primary) !important;
   border: none;
   border-radius: var(--radius-md);
@@ -554,9 +563,10 @@ body.mode-tablet .mobile-cart-fab {
   justify-content: center;
   gap: 6px;
   touch-action: manipulation;
+  flex-shrink: 0;
 }
 
-/* ================= FLOATING CART BUTTON KOMPAK ================= */
+/* ================= FLOATING CART BUTTON ================= */
 .mobile-cart-fab {
   position: fixed;
   bottom: 18px;
