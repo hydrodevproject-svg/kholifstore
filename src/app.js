@@ -31,7 +31,7 @@ import { initMembersModule, renderAllMemberData, closeMemberSubMenu } from "./me
 import { initPosModule, renderCategories, renderProducts, renderCart, addToCart, attachMember } from "./pos.js";
 import { initReportsModule, renderReports } from "./reports.js";
 import { initFinanceModule, renderFinanceDashboard, closeFinanceSubMenu } from "./finance.js";
-import { playScannerBeep, showScanToast, debounce } from "./utils.js";
+import { playScannerBeep, showScanToast, debounce, hashPassword } from "./utils.js";
 
 const MAX_CONSOLE_RENDER = 50;
 
@@ -201,11 +201,17 @@ export function switchView(viewId) {
 function initSessionAndLogin() {
   const posLoginForm = document.getElementById("posLoginForm");
   if (posLoginForm) {
-    posLoginForm.addEventListener("submit", (e) => {
+    posLoginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const u = document.getElementById("loginUsername").value.trim().toLowerCase();
       const p = document.getElementById("loginPassword").value.trim();
-      const acc = state.accountsDB.find((a) => a.username.toLowerCase() === u && a.password === p);
+      const hashedInput = await hashPassword(p);
+
+      const acc = state.accountsDB.find((a) => {
+        const matchUser = a.username.toLowerCase() === u;
+        const matchPass = a.password === p || a.password === hashedInput;
+        return matchUser && matchPass;
+      });
 
       if (!acc) {
         const errMsg = document.getElementById("loginErrorMessage");
@@ -216,7 +222,15 @@ function initSessionAndLogin() {
         return;
       }
 
-      state.currentUser = { ...acc };
+      // Otomatis migrasikan password lama plain-text ke hash SHA-256
+      if (acc.password === p) {
+        acc.password = hashedInput;
+        persistAccounts();
+      }
+
+      // Amankan sesi: buang field password sebelum disimpan ke storage lokal
+      const { password, ...safeUser } = acc;
+      state.currentUser = { ...safeUser };
       saveUserSession(state.currentUser);
       document.getElementById("loginScreen")?.classList.add("hidden");
 
@@ -239,7 +253,8 @@ function initSessionAndLogin() {
 
   const cached = getValidSession();
   if (cached) {
-    state.currentUser = cached;
+    const { password, ...safeUser } = cached;
+    state.currentUser = safeUser;
     document.getElementById("loginScreen")?.classList.add("hidden");
     setupUserSessionUI();
     switchView("view-pos");
@@ -424,8 +439,15 @@ function initSettingsModule() {
       monthSales.forEach((trx) => {
         if (Array.isArray(trx.items)) {
           trx.items.forEach((item) => {
-            const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
-            totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * (item.qty || 1);
+            const qty = Number(item.qty || 1);
+            if (item.totalCost !== undefined) {
+              totalHpp += Number(item.totalCost);
+            } else if (item.costPrice !== undefined) {
+              totalHpp += Number(item.costPrice) * qty;
+            } else {
+              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+              totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * qty;
+            }
           });
         }
       });
@@ -482,8 +504,15 @@ function initSettingsModule() {
       yearSales.forEach((trx) => {
         if (Array.isArray(trx.items)) {
           trx.items.forEach((item) => {
-            const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
-            totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * (item.qty || 1);
+            const qty = Number(item.qty || 1);
+            if (item.totalCost !== undefined) {
+              totalHpp += Number(item.totalCost);
+            } else if (item.costPrice !== undefined) {
+              totalHpp += Number(item.costPrice) * qty;
+            } else {
+              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+              totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * qty;
+            }
           });
         }
       });
@@ -906,9 +935,9 @@ function initMasterItModule() {
         const acc = state.accountsDB.find((a) => a.username === u);
         if (!acc) return;
 
-        const newPass = await showThemedPrompt("Ubah Password", `Masukkan password baru untuk akun ${acc.name} (${u}):`, acc.password);
+        const newPass = await showThemedPrompt("Ubah Password", `Masukkan password baru untuk akun ${acc.name} (${u}):`, "");
         if (newPass && newPass.trim() !== "") {
-          acc.password = newPass.trim();
+          acc.password = await hashPassword(newPass.trim());
           persistAccounts();
           renderAccountsTable();
           showScanToast("Password akun diperbarui");
@@ -1030,7 +1059,7 @@ function initMasterItModule() {
       e.preventDefault();
       const name = document.getElementById("newAccName").value.trim();
       const username = document.getElementById("newAccUser").value.trim().toLowerCase();
-      const password = document.getElementById("newAccPass").value.trim();
+      const rawPassword = document.getElementById("newAccPass").value.trim();
       const role = document.getElementById("newAccRole").value;
 
       if (state.accountsDB.some((a) => a.username === username)) {
@@ -1038,7 +1067,8 @@ function initMasterItModule() {
         return;
       }
 
-      state.accountsDB.push({ name, username, password, role });
+      const hashedPassword = await hashPassword(rawPassword);
+      state.accountsDB.push({ name, username, password: hashedPassword, role });
       persistAccounts();
       renderAccountsTable();
       updateMasterItBadges();
@@ -1205,11 +1235,11 @@ function renderAccountsTable() {
       <tr>
         <td><strong>${acc.name}</strong></td>
         <td>${acc.username}</td>
-        <td><code>${acc.password}</code></td>
+        <td><code>••••••••</code></td>
         <td><span class="badge-mono">${acc.role.replace("_", " ")}</span></td>
         <td style="text-align: right;">
           ${isMaster ? "<small>Akun Utama</small>" : `
-            <button type="button" class="btn-table-action btn-edit-acc" data-u="${acc.username}">Edit</button>
+            <button type="button" class="btn-table-action btn-edit-acc" data-u="${acc.username}">Ubah Sandi</button>
             <button type="button" class="btn-table-action btn-delete btn-del-acc" data-u="${acc.username}">Hapus</button>
           `}
         </td>
@@ -1442,7 +1472,6 @@ function initHardwareScanner() {
     const activeTag = activeEl ? activeEl.tagName : "";
     const activeId = activeEl ? activeEl.id : "";
 
-    // Daftar input pencarian dan barcode yang didukung penuh scanner fisik
     const allowedScannerInputs = [
       "productSearch",
       "prodFormBarcode",
