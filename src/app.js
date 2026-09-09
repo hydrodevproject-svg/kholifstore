@@ -153,16 +153,28 @@ export function switchView(viewId) {
   if (target) target.classList.add("active");
 
   const isTabletOrDesktop = document.body.classList.contains("mode-tablet") || window.innerWidth >= 1024;
+  const fab = document.getElementById("btnOpenCartMobile");
+
   if (viewId === "view-pos") {
     document.getElementById("headerSearchBox")?.classList.remove("hidden");
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "none";
-    if (!isTabletOrDesktop) document.getElementById("btnOpenCartMobile")?.classList.remove("hidden");
+
+    // Pulihkan tombol keranjang apung untuk tampilan mobile
+    if (!isTabletOrDesktop && fab) {
+      fab.classList.remove("hidden");
+      fab.style.display = "flex";
+    }
   } else {
     document.getElementById("headerSearchBox")?.classList.add("hidden");
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "block";
-    document.getElementById("btnOpenCartMobile")?.classList.add("hidden");
+
+    // Sembunyikan tombol keranjang apung di luar menu POS
+    if (fab) {
+      fab.classList.add("hidden");
+      fab.style.display = "none";
+    }
 
     if (viewId === "view-members") {
       if (hTitle) hTitle.textContent = "MEMBER";
@@ -321,15 +333,22 @@ function initSessionAndLogin() {
 }
 
 function applyDeviceMode(isTablet) {
+  const fab = document.getElementById("btnOpenCartMobile");
   if (isTablet) {
     document.body.classList.remove("mode-mobile");
     document.body.classList.add("mode-tablet");
-    document.getElementById("btnOpenCartMobile")?.classList.add("hidden");
+    if (fab) {
+      fab.classList.add("hidden");
+      fab.style.display = "none";
+    }
   } else {
     document.body.classList.remove("mode-tablet");
     document.body.classList.add("mode-mobile");
     if (state.currentViewId === "view-pos") {
-      document.getElementById("btnOpenCartMobile")?.classList.remove("hidden");
+      if (fab) {
+        fab.classList.remove("hidden");
+        fab.style.display = "flex";
+      }
     }
   }
 }
