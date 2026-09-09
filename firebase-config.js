@@ -8,7 +8,11 @@ import {
   getDoc, 
   setDoc, 
   onSnapshot, 
-  updateDoc 
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  limit 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -32,4 +36,15 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth(app);
 
-export { doc, getDoc, setDoc, onSnapshot, collection, updateDoc };
+export { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  onSnapshot, 
+  collection, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  orderBy, 
+  limit 
+};
