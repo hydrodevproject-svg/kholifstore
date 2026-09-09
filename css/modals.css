@@ -1168,3 +1168,7 @@
 #posMemberPickerScreen {
   z-index: 3300 !important;
 }
+
+#payPageScreen {
+  z-index: 3400 !important;
+}
