@@ -1,5 +1,11 @@
 // src/inventory.js
-import { state, persistProducts, persistCategories, persistOpnames } from "./state.js";
+import { 
+  state, 
+  persistProducts, 
+  deleteProductDoc, 
+  persistCategories, 
+  persistOpnames 
+} from "./state.js";
 import { showThemedAlert, showThemedConfirm, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce } from "./utils.js";
 import { renderProducts } from "./pos.js";
@@ -241,6 +247,8 @@ async function handleSaveProduct(e) {
   const price = parseInt(document.getElementById("prodFormSellPrice").value, 10) || 0;
   const stock = parseInt(document.getElementById("prodFormInitialStock").value, 10) || 0;
 
+  let targetProd = null;
+
   if (editingProductId) {
     const prod = state.productsDB.find((p) => p && p.id === editingProductId);
     if (prod) {
@@ -250,7 +258,6 @@ async function handleSaveProduct(e) {
       prod.costPrice = costPrice;
       prod.price = price;
 
-      // Sinkronkan perubahan harga ke seluruh batch yang masih bersisa
       if (Array.isArray(prod.batches)) {
         prod.batches.forEach((b) => {
           if (b.qty > 0) {
@@ -259,10 +266,11 @@ async function handleSaveProduct(e) {
           }
         });
       }
+      targetProd = prod;
     }
   } else {
     const newId = Date.now();
-    state.productsDB.unshift({
+    targetProd = {
       id: newId,
       barcode: barcode || `899${Math.floor(1000 + Math.random() * 9000)}`,
       name,
@@ -278,10 +286,12 @@ async function handleSaveProduct(e) {
         qty: stock,
         expireDate: ""
       }] : []
-    });
+    };
+    state.productsDB.unshift(targetProd);
   }
 
-  persistProducts();
+  // Simpan spesifik produk langsung ke dokumen Firestore
+  persistProducts(targetProd);
   renderAllInventoryData();
   renderProducts();
   window.history.back();
@@ -397,6 +407,7 @@ function renderInventoryCatalogTable() {
       const ok = await showThemedConfirm("Hapus Barang", `Hapus barang "${prod.name}" dari sistem katalog?`);
       if (ok) {
         state.productsDB = state.productsDB.filter((p) => p && p.id !== id);
+        deleteProductDoc(id); // Hapus dokumen cloud individual
         persistProducts();
         renderAllInventoryData();
         renderProducts();
@@ -552,7 +563,7 @@ function initStockOpnameEvents() {
       const diff = physStock - sysStock;
       const note = document.getElementById("opnameNote").value.trim();
 
-      // Sinkronkan stok fisik ke objek produk dan kumpulan batch aktif
+      // Sinkronkan stok fisik pada produk dan batch aktif
       prod.stock = physStock;
       if (Array.isArray(prod.batches) && prod.batches.length > 0) {
         prod.batches.forEach((b) => { b.qty = 0; });
@@ -567,9 +578,9 @@ function initStockOpnameEvents() {
           expireDate: ""
         }];
       }
-      persistProducts();
+      persistProducts(prod); // Sinkron langsung per-produk
 
-      state.stockOpnamesDB.unshift({
+      const newOpname = {
         id: `OPN-${Date.now()}`,
         date: new Date().toLocaleDateString("id-ID"),
         productId: prod.id,
@@ -578,8 +589,9 @@ function initStockOpnameEvents() {
         physicalStock: physStock,
         diff,
         note
-      });
-      persistOpnames();
+      };
+      state.stockOpnamesDB.unshift(newOpname);
+      persistOpnames(newOpname); // Sinkron langsung per-dokumen opname
 
       window.history.back();
       renderAllInventoryData();
