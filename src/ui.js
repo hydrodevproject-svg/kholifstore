@@ -3,6 +3,7 @@ import { state } from "./state.js";
 
 let allowAppExit = false;
 let dialogResolveCallback = null;
+let dialogCancelCallback = null;
 
 export async function loadViews() {
   const viewsToLoad = [
@@ -99,6 +100,7 @@ export function showThemedAlert(title, message, type = "info") {
     }
     iconBox.innerHTML = iconSvg;
 
+    dialogCancelCallback = null;
     dialogResolveCallback = () => {
       modal.classList.remove("open");
       dialogResolveCallback = null;
@@ -130,15 +132,19 @@ export function showThemedConfirm(title, message, confirmText = "Lanjutkan", can
 
     iconBox.innerHTML = `<svg style="color:var(--brand-warning); width:42px; height:42px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
 
-    btnCancel.onclick = () => {
+    dialogCancelCallback = () => {
       modal.classList.remove("open");
       dialogResolveCallback = null;
+      dialogCancelCallback = null;
       resolve(false);
     };
+
+    btnCancel.onclick = dialogCancelCallback;
 
     dialogResolveCallback = () => {
       modal.classList.remove("open");
       dialogResolveCallback = null;
+      dialogCancelCallback = null;
       resolve(true);
     };
 
@@ -170,16 +176,20 @@ export function showThemedPrompt(title, message, defaultValue = "", placeholder 
 
     iconBox.innerHTML = `<svg style="color:var(--brand-primary); width:42px; height:42px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
 
-    btnCancel.onclick = () => {
+    dialogCancelCallback = () => {
       modal.classList.remove("open");
       dialogResolveCallback = null;
+      dialogCancelCallback = null;
       resolve(null);
     };
+
+    btnCancel.onclick = dialogCancelCallback;
 
     dialogResolveCallback = () => {
       const res = dInputVal.value.trim();
       modal.classList.remove("open");
       dialogResolveCallback = null;
+      dialogCancelCallback = null;
       resolve(res);
     };
 
@@ -266,8 +276,11 @@ export function handleDeviceBackNavigation(callbacks = {}) {
 
   switch (topScreen) {
     case "themeDialog":
-      document.getElementById("appThemeDialogModal")?.classList.remove("open");
-      if (dialogResolveCallback) dialogResolveCallback();
+      if (dialogCancelCallback) {
+        dialogCancelCallback();
+      } else if (dialogResolveCallback) {
+        dialogResolveCallback();
+      }
       break;
     case "consoleEditModal":
       document.getElementById("consoleEditModal")?.classList.remove("open");
