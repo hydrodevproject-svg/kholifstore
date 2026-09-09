@@ -63,6 +63,7 @@ export const state = {
 
   financeDB: {
     cashBalance: 500000,
+    digitalBalance: 0,
     logs: []
   },
 
@@ -208,12 +209,20 @@ export async function loadInitialStateFromDB() {
   const localFinance = await getLocalItem("kholif_pos_finance");
   if (localFinance && typeof localFinance === "object") {
     state.financeDB = localFinance;
+    if (state.financeDB.digitalBalance === undefined) {
+      state.financeDB.digitalBalance = 0;
+    }
+    if (state.financeDB.cashBalance === undefined) {
+      state.financeDB.cashBalance = 0;
+    }
+    if (!Array.isArray(state.financeDB.logs)) {
+      state.financeDB.logs = [];
+    }
   } else {
-    state.financeDB = { cashBalance: 500000, logs: [] };
+    state.financeDB = { cashBalance: 500000, digitalBalance: 0, logs: [] };
     await setLocalItem("kholif_pos_finance", state.financeDB);
   }
 
-  // Sinkronisasi konfigurasi printer dari IndexedDB dengan fallback ke localStorage
   const localPrinter = await getLocalItem("kholif_pos_printer_config");
   if (localPrinter && typeof localPrinter === "object") {
     state.printerConfig = localPrinter;
@@ -474,6 +483,15 @@ export function initFirebaseSync(callbacks = {}) {
     async (snap) => {
       if (snap.exists()) {
         state.financeDB = snap.data();
+        if (state.financeDB.digitalBalance === undefined) {
+          state.financeDB.digitalBalance = 0;
+        }
+        if (state.financeDB.cashBalance === undefined) {
+          state.financeDB.cashBalance = 0;
+        }
+        if (!Array.isArray(state.financeDB.logs)) {
+          state.financeDB.logs = [];
+        }
         await setLocalItem("kholif_pos_finance", state.financeDB);
         markSync();
         if (callbacks.onFinanceChange) callbacks.onFinanceChange();
