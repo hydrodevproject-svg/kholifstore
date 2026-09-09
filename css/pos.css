@@ -52,7 +52,7 @@ body.mode-mobile .cat-pill.active {
   color: #ffffff !important;
 }
 
-/* PANEL KERANJANG DI HP: Menggunakan dvh & z-index tinggi agar tombol bayar selalu terlihat */
+/* PANEL KERANJANG DI HP: Menggunakan dvh agar pas dengan layar Android */
 body.mode-mobile .order-panel {
   position: fixed;
   top: 0;
@@ -62,7 +62,7 @@ body.mode-mobile .order-panel {
   height: 100dvh;
   max-height: 100dvh;
   background-color: var(--bg-canvas) !important;
-  z-index: 3100; /* Lebih tinggi dari navbar dan floating cart */
+  z-index: 3100;
   display: flex;
   flex-direction: column;
   transform: translate3d(0, 100%, 0);
@@ -73,6 +73,14 @@ body.mode-mobile .order-panel {
 
 body.mode-mobile .order-panel.mobile-open {
   transform: translate3d(0, 0, 0);
+}
+
+/* Sembunyikan otomatis tombol apung hitam saat keranjang aktif */
+body.mode-mobile .order-panel.mobile-open ~ .mobile-cart-fab,
+body.mode-mobile:has(.order-panel.mobile-open) .mobile-cart-fab {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 /* ================= TATA LETAK KOMPUTER & TABLET ================= */
@@ -411,7 +419,7 @@ body.mode-tablet .mobile-cart-fab {
   gap: 6px;
   background-color: var(--bg-canvas) !important;
   -webkit-overflow-scrolling: touch;
-  min-height: 0; /* Mencegah item mendorong summary keluar */
+  min-height: 0;
 }
 
 .order-card-item {
@@ -503,8 +511,10 @@ body.mode-tablet .mobile-cart-fab {
   margin-bottom: 6px;
 }
 
-/* RINGKASAN & TOMBOL BAYAR: Menggunakan safe-area-inset agar tidak terpotong tombol sistem HP */
+/* ================= SUMMARY & CHECKOUT BUTTON ================= */
 .order-summary {
+  position: relative;
+  z-index: 3200 !important;
   padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px));
   background-color: var(--surface) !important;
   border-top: 1px solid var(--border-light);
@@ -549,13 +559,15 @@ body.mode-tablet .mobile-cart-fab {
 }
 
 .btn-checkout {
+  position: relative;
+  z-index: 3201 !important;
   margin-top: 6px;
-  height: 44px;
+  height: 46px;
   background: var(--brand-primary) !important;
   border: none;
   border-radius: var(--radius-md);
   color: #ffffff !important;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -563,7 +575,13 @@ body.mode-tablet .mobile-cart-fab {
   justify-content: center;
   gap: 6px;
   touch-action: manipulation;
+  pointer-events: auto !important;
   flex-shrink: 0;
+}
+
+.btn-checkout:active {
+  opacity: 0.92;
+  transform: scale(0.99);
 }
 
 /* ================= FLOATING CART BUTTON ================= */
