@@ -1,5 +1,12 @@
 // src/reports.js
-import { state, persistSales, persistProducts, persistFinance, persistMembers } from "./state.js";
+import { 
+  state, 
+  persistSales, 
+  deleteSaleDoc, 
+  persistProducts, 
+  persistFinance, 
+  persistMembers 
+} from "./state.js";
 import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
@@ -48,6 +55,7 @@ export function initReportsModule() {
             revertFinanceAndMember(trx, "Penghapusan Transaksi");
           }
           state.salesTransactions = state.salesTransactions.filter((t) => t.id !== id);
+          deleteSaleDoc(id);
           persistSales();
           renderReports();
           renderAllMemberData();
@@ -111,7 +119,7 @@ export function initReportsModule() {
       trx.total = parseInt(document.getElementById("editTrxTotal").value, 10) || 0;
       trx.status = newStatus;
 
-      // Logika pemulihan stok & arus kas otomatis saat status berubah
+      // Pemulihan stok dan kas otomatis saat status nota berubah
       if (oldStatus !== "Dibatalkan" && newStatus === "Dibatalkan") {
         restoreTransactionStock(trx);
         revertFinanceAndMember(trx, "Pembatalan Transaksi");
@@ -124,7 +132,7 @@ export function initReportsModule() {
         showScanToast(`Transaksi ${id} diperbarui`);
       }
 
-      persistSales();
+      persistSales(trx);
       renderReports();
       window.history.back();
     });
@@ -133,7 +141,7 @@ export function initReportsModule() {
   renderReports();
 }
 
-// 1. Fungsi Pemulihan Stok Barang (Restock ke Gudang)
+// 1. Pemulihan Stok Barang (Restock ke Gudang)
 function restoreTransactionStock(trx) {
   if (!trx || !Array.isArray(trx.items)) return;
 
@@ -144,7 +152,9 @@ function restoreTransactionStock(trx) {
     if (prod) {
       prod.stock = (Number(prod.stock) || 0) + (Number(item.qty) || 0);
 
-      // Kembalikan ke batch terakhir atau batch aktif
+      const restoreCost = Number(item.costPrice) || Number(prod.costPrice) || 0;
+      const restorePrice = Number(item.price) || Number(prod.price) || 0;
+
       if (Array.isArray(prod.batches) && prod.batches.length > 0) {
         const lastBatch = prod.batches[prod.batches.length - 1];
         lastBatch.qty = (Number(lastBatch.qty) || 0) + (Number(item.qty) || 0);
@@ -152,8 +162,8 @@ function restoreTransactionStock(trx) {
         prod.batches = [{
           id: `BATCH-RESTORE-${Date.now()}`,
           nota: "BATAL-TRX",
-          buyPrice: prod.costPrice || 0,
-          sellPrice: prod.price || 0,
+          buyPrice: restoreCost,
+          sellPrice: restorePrice,
           qty: Number(item.qty) || 0,
           expireDate: ""
         }];
@@ -166,7 +176,7 @@ function restoreTransactionStock(trx) {
   renderAllInventoryData();
 }
 
-// 2. Fungsi Pemotongan Kembali Stok jika Status Dibatalkan diubah ke Sukses
+// 2. Pemotongan Kembali Stok jika Status Dibatalkan diubah menjadi Sukses
 function reDeductTransactionStock(trx) {
   if (!trx || !Array.isArray(trx.items)) return;
 
@@ -184,7 +194,7 @@ function reDeductTransactionStock(trx) {
   renderAllInventoryData();
 }
 
-// 3. Fungsi Revert Keuangan & Member saat Transaksi Dibatalkan/Dihapus
+// 3. Revert Keuangan & Member saat Transaksi Dibatalkan/Dihapus
 function revertFinanceAndMember(trx, reason = "Pembatalan") {
   const totalAmt = Number(trx.total) || 0;
   const now = new Date();
@@ -237,7 +247,7 @@ function revertFinanceAndMember(trx, reason = "Pembatalan") {
   }
 }
 
-// 4. Fungsi Re-Apply Keuangan & Member saat Transaksi Diaktifkan Kembali
+// 4. Re-Apply Keuangan & Member saat Transaksi Diaktifkan Kembali
 function reApplyFinanceAndMember(trx) {
   const totalAmt = Number(trx.total) || 0;
   const now = new Date();
@@ -311,7 +321,7 @@ export function renderReports() {
   if (repCountTotal) repCountTotal.textContent = filtered.length;
 
   const suksesTrx = state.salesTransactions.filter((t) => t.status !== "Dibatalkan");
-  const totalRev = suksesTrx.reduce((acc, t) => acc + t.total, 0);
+  const totalRev = suksesTrx.reduce((acc, t) => acc + Number(t.total || 0), 0);
 
   let totalHppSold = 0;
   const productSalesMap = {};
@@ -319,11 +329,21 @@ export function renderReports() {
   suksesTrx.forEach((trx) => {
     if (trx.items && Array.isArray(trx.items)) {
       trx.items.forEach((item) => {
-        const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
-        const costPrice = prod ? Number(prod.costPrice || 0) : 0;
-        totalHppSold += costPrice * (item.qty || 1);
+        const qty = Number(item.qty || 1);
 
-        productSalesMap[item.name] = (productSalesMap[item.name] || 0) + (item.qty || 1);
+        // Prioritaskan modal historis riil yang tersimpan di dalam struk transaksi
+        let itemCost = 0;
+        if (item.totalCost !== undefined) {
+          itemCost = Number(item.totalCost);
+        } else if (item.costPrice !== undefined) {
+          itemCost = Number(item.costPrice) * qty;
+        } else {
+          const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+          itemCost = (prod ? Number(prod.costPrice || 0) : 0) * qty;
+        }
+
+        totalHppSold += itemCost;
+        productSalesMap[item.name] = (productSalesMap[item.name] || 0) + qty;
       });
     }
   });
@@ -392,7 +412,7 @@ export function renderReports() {
           <strong>${trx.cashier}</strong><br>
           <small style="color:var(--text-secondary);">${trx.member ? `👤 ${trx.member.name}` : "Non-Member"}</small>
         </td>
-        <td><strong>Rp ${trx.total.toLocaleString("id-ID")}</strong></td>
+        <td><strong>Rp ${Number(trx.total || 0).toLocaleString("id-ID")}</strong></td>
         <td><span class="badge-mono ${statusClass}">${statusVal}</span></td>
         <td style="text-align: right;">
           ${canModify ? `
@@ -498,9 +518,9 @@ function openEditTrxPage(trx) {
         row.innerHTML = `
           <div>
             <strong>${item.name}</strong><br>
-            <span style="color:var(--text-secondary);">${item.qty} x Rp ${item.price.toLocaleString("id-ID")}</span>
+            <span style="color:var(--text-secondary);">${item.qty} x Rp ${Number(item.price || 0).toLocaleString("id-ID")}</span>
           </div>
-          <strong>Rp ${item.subtotal.toLocaleString("id-ID")}</strong>
+          <strong>Rp ${Number(item.subtotal || 0).toLocaleString("id-ID")}</strong>
         `;
         listEl.appendChild(row);
       });
