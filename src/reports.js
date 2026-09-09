@@ -1,9 +1,12 @@
 // src/reports.js
-import { state, persistSales } from "./state.js";
+import { state, persistSales, persistProducts, persistFinance, persistMembers } from "./state.js";
 import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { renderAllMemberData } from "./members.js";
+import { renderProducts, deductProductStockFIFO } from "./pos.js";
+import { renderAllInventoryData } from "./inventory.js";
+import { renderFinanceDashboard } from "./finance.js";
 
 let reportsCurrentPage = 1;
 const REPORTS_PAGE_SIZE = 20;
@@ -32,13 +35,23 @@ export function initReportsModule() {
       const delBtn = e.target.closest(".btn-del-trx");
       if (delBtn) {
         const id = delBtn.getAttribute("data-id");
-        const ok = await showThemedConfirm("Hapus Transaksi", `Yakin ingin menghapus transaksi "${id}"?`);
+        const trx = state.salesTransactions.find((t) => t.id === id);
+        if (!trx) return;
+
+        const ok = await showThemedConfirm(
+          "Hapus Transaksi",
+          `Yakin ingin menghapus transaksi "${id}"? Stok barang dan kas akan dikembalikan jika transaksi berstatus Sukses.`
+        );
         if (ok) {
+          if (trx.status !== "Dibatalkan") {
+            restoreTransactionStock(trx);
+            revertFinanceAndMember(trx, "Penghapusan Transaksi");
+          }
           state.salesTransactions = state.salesTransactions.filter((t) => t.id !== id);
           persistSales();
           renderReports();
           renderAllMemberData();
-          showScanToast(`Transaksi ${id} dihapus`);
+          showScanToast(`Transaksi ${id} dihapus & stok dikembalikan`);
         }
       }
     });
@@ -90,19 +103,190 @@ export function initReportsModule() {
       const trx = state.salesTransactions.find((t) => t.id === id);
       if (!trx) return;
 
+      const oldStatus = trx.status || "Sukses";
+      const newStatus = document.getElementById("editTrxStatus").value;
+
       trx.time = document.getElementById("editTrxTime").value.trim();
       trx.cashier = document.getElementById("editTrxCashier").value.trim();
       trx.total = parseInt(document.getElementById("editTrxTotal").value, 10) || 0;
-      trx.status = document.getElementById("editTrxStatus").value;
+      trx.status = newStatus;
+
+      // Logika pemulihan stok & arus kas otomatis saat status berubah
+      if (oldStatus !== "Dibatalkan" && newStatus === "Dibatalkan") {
+        restoreTransactionStock(trx);
+        revertFinanceAndMember(trx, "Pembatalan Transaksi");
+        showScanToast(`Transaksi ${id} dibatalkan & stok dikembalikan`);
+      } else if (oldStatus === "Dibatalkan" && newStatus === "Sukses") {
+        reDeductTransactionStock(trx);
+        reApplyFinanceAndMember(trx);
+        showScanToast(`Transaksi ${id} diaktifkan kembali & stok dipotong`);
+      } else {
+        showScanToast(`Transaksi ${id} diperbarui`);
+      }
 
       persistSales();
       renderReports();
       window.history.back();
-      showScanToast(`Transaksi ${id} diperbarui`);
     });
   }
 
   renderReports();
+}
+
+// 1. Fungsi Pemulihan Stok Barang (Restock ke Gudang)
+function restoreTransactionStock(trx) {
+  if (!trx || !Array.isArray(trx.items)) return;
+
+  trx.items.forEach((item) => {
+    const prod = state.productsDB.find(
+      (p) => (item.id && p.id === item.id) || (p.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (prod) {
+      prod.stock = (Number(prod.stock) || 0) + (Number(item.qty) || 0);
+
+      // Kembalikan ke batch terakhir atau batch aktif
+      if (Array.isArray(prod.batches) && prod.batches.length > 0) {
+        const lastBatch = prod.batches[prod.batches.length - 1];
+        lastBatch.qty = (Number(lastBatch.qty) || 0) + (Number(item.qty) || 0);
+      } else {
+        prod.batches = [{
+          id: `BATCH-RESTORE-${Date.now()}`,
+          nota: "BATAL-TRX",
+          buyPrice: prod.costPrice || 0,
+          sellPrice: prod.price || 0,
+          qty: Number(item.qty) || 0,
+          expireDate: ""
+        }];
+      }
+    }
+  });
+
+  persistProducts();
+  renderProducts();
+  renderAllInventoryData();
+}
+
+// 2. Fungsi Pemotongan Kembali Stok jika Status Dibatalkan diubah ke Sukses
+function reDeductTransactionStock(trx) {
+  if (!trx || !Array.isArray(trx.items)) return;
+
+  trx.items.forEach((item) => {
+    const prod = state.productsDB.find(
+      (p) => (item.id && p.id === item.id) || (p.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+    );
+    if (prod) {
+      deductProductStockFIFO(prod, item.qty || 1);
+    }
+  });
+
+  persistProducts();
+  renderProducts();
+  renderAllInventoryData();
+}
+
+// 3. Fungsi Revert Keuangan & Member saat Transaksi Dibatalkan/Dihapus
+function revertFinanceAndMember(trx, reason = "Pembatalan") {
+  const totalAmt = Number(trx.total) || 0;
+  const now = new Date();
+  const timeStr = `${now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+  if (!state.financeDB) state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+  if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+
+  if (trx.paymentMethod === "Tunai") {
+    state.financeDB.cashBalance = Math.max(0, (state.financeDB.cashBalance || 0) - totalAmt);
+    state.financeDB.logs.unshift({
+      id: `FIN-REV-${Date.now()}`,
+      time: timeStr,
+      type: `${reason} (Tunai)`,
+      amount: totalAmt,
+      note: `${reason} Struk: ${trx.id}`,
+      admin: state.currentUser ? state.currentUser.name : "Admin"
+    });
+    persistFinance();
+    renderFinanceDashboard();
+  } else if (trx.paymentMethod === "Transfer / QRIS") {
+    state.financeDB.digitalBalance = Math.max(0, (state.financeDB.digitalBalance || 0) - totalAmt);
+    state.financeDB.logs.unshift({
+      id: `FIN-REV-${Date.now()}`,
+      time: timeStr,
+      type: `${reason} (QRIS)`,
+      amount: totalAmt,
+      note: `${reason} Struk: ${trx.id}`,
+      admin: state.currentUser ? state.currentUser.name : "Admin"
+    });
+    persistFinance();
+    renderFinanceDashboard();
+  } else if (trx.paymentMethod === "Piutang / Kasbon" && trx.member?.id) {
+    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    if (mbr) {
+      mbr.debt = Math.max(0, (mbr.debt || 0) - totalAmt);
+      persistMembers();
+    }
+  }
+
+  // Tarik poin loyalitas yang didapat member dari transaksi ini
+  if (trx.member?.id) {
+    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    if (mbr) {
+      const earnedPts = Math.floor(totalAmt / 1000);
+      mbr.points = Math.max(0, (mbr.points || 0) - earnedPts);
+      persistMembers();
+      renderAllMemberData();
+    }
+  }
+}
+
+// 4. Fungsi Re-Apply Keuangan & Member saat Transaksi Diaktifkan Kembali
+function reApplyFinanceAndMember(trx) {
+  const totalAmt = Number(trx.total) || 0;
+  const now = new Date();
+  const timeStr = `${now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+  if (!state.financeDB) state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+  if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+
+  if (trx.paymentMethod === "Tunai") {
+    state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + totalAmt;
+    state.financeDB.logs.unshift({
+      id: `FIN-${Date.now()}`,
+      time: timeStr,
+      type: "Aktivasi Ulang (Tunai)",
+      amount: totalAmt,
+      note: `Re-aktivasi Struk: ${trx.id}`,
+      admin: state.currentUser ? state.currentUser.name : "Admin"
+    });
+    persistFinance();
+    renderFinanceDashboard();
+  } else if (trx.paymentMethod === "Transfer / QRIS") {
+    state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + totalAmt;
+    state.financeDB.logs.unshift({
+      id: `FIN-${Date.now()}`,
+      time: timeStr,
+      type: "Aktivasi Ulang (QRIS)",
+      amount: totalAmt,
+      note: `Re-aktivasi Struk: ${trx.id}`,
+      admin: state.currentUser ? state.currentUser.name : "Admin"
+    });
+    persistFinance();
+    renderFinanceDashboard();
+  } else if (trx.paymentMethod === "Piutang / Kasbon" && trx.member?.id) {
+    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    if (mbr) {
+      mbr.debt = (mbr.debt || 0) + totalAmt;
+      persistMembers();
+    }
+  }
+
+  if (trx.member?.id) {
+    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    if (mbr) {
+      const earnedPts = Math.floor(totalAmt / 1000);
+      mbr.points = (mbr.points || 0) + earnedPts;
+      persistMembers();
+      renderAllMemberData();
+    }
+  }
 }
 
 export function renderReports() {
