@@ -249,7 +249,7 @@ export async function loadInitialStateFromDB() {
    PENGHEMAT KUOTA TULIS: WRITE-DEBOUNCE SYNC
    ========================================================= */
 const syncTimers = {};
-function queueFirestoreSync(key, syncFn, delay = 600) {
+function queueFirestoreSync(key, syncFn, delay = 500) {
   clearTimeout(syncTimers[key]);
   syncTimers[key] = setTimeout(() => {
     syncFn();
@@ -278,11 +278,38 @@ export function persistCategories() {
   });
 }
 
-export function persistProducts() {
+// Sinkronisasi per-produk: Mencegah penimpaan saat kasir & karyawan bekerja bersamaan
+export function persistProducts(specificProductOrList = null) {
   setLocalItem("kholif_pos_products", state.productsDB);
-  queueFirestoreSync("products", () => {
-    try { setDoc(doc(db, "system_data", "products"), { list: state.productsDB }, { merge: true }); } catch (e) {}
-  });
+
+  if (specificProductOrList) {
+    const items = Array.isArray(specificProductOrList) ? specificProductOrList : [specificProductOrList];
+    items.forEach((p) => {
+      if (p && p.id) {
+        try {
+          setDoc(doc(db, "products_catalog", String(p.id)), p, { merge: true });
+        } catch (e) {}
+      }
+    });
+    state.lastSyncTimestamp = Date.now();
+  } else {
+    queueFirestoreSync("products_catalog", () => {
+      state.productsDB.forEach((p) => {
+        if (p && p.id) {
+          try {
+            setDoc(doc(db, "products_catalog", String(p.id)), p, { merge: true });
+          } catch (e) {}
+        }
+      });
+    }, 400);
+  }
+}
+
+export function deleteProductDoc(productId) {
+  if (!productId) return;
+  try {
+    deleteDoc(doc(db, "products_catalog", String(productId)));
+  } catch (e) {}
 }
 
 export function persistPurchases() {
@@ -299,14 +326,29 @@ export function persistSupplierDebts() {
   });
 }
 
-export function persistOpnames() {
+// Sinkronisasi per-opname: Aman dari tabrakan input beberapa karyawan
+export function persistOpnames(specificOpname = null) {
   setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
-  queueFirestoreSync("stock_opnames", () => {
-    try { setDoc(doc(db, "system_data", "stock_opnames"), { list: state.stockOpnamesDB }, { merge: true }); } catch (e) {}
-  });
+
+  if (specificOpname && specificOpname.id) {
+    try {
+      setDoc(doc(db, "inventory_opnames", String(specificOpname.id)), specificOpname, { merge: true });
+      state.lastSyncTimestamp = Date.now();
+    } catch (e) {}
+  } else {
+    queueFirestoreSync("inventory_opnames", () => {
+      state.stockOpnamesDB.slice(0, 50).forEach((opn) => {
+        if (opn && opn.id) {
+          try {
+            setDoc(doc(db, "inventory_opnames", String(opn.id)), opn, { merge: true });
+          } catch (e) {}
+        }
+      });
+    }, 400);
+  }
 }
 
-// Menyimpan setiap transaksi sebagai dokumen mandiri tanpa batas potong 150
+// Sinkronisasi per-transaksi penjualan
 export function persistSales(specificTrx = null) {
   setLocalItem("kholif_pos_sales", state.salesTransactions);
 
@@ -331,7 +373,6 @@ export function persistSales(specificTrx = null) {
   }
 }
 
-// Menghapus dokumen transaksi dari koleksi Firestore saat transaksi dihapus
 export function deleteSaleDoc(trxId) {
   if (!trxId) return;
   try {
@@ -363,7 +404,7 @@ export function persistPrinterConfig() {
 }
 
 /* =========================================================
-   SINKRONISASI REALTIME FIREBASE
+   SINKRONISASI REALTIME FIREBASE (MULTI-DEVICE READY)
    ========================================================= */
 export function initFirebaseSync(callbacks = {}) {
   const markSync = () => {
@@ -374,18 +415,34 @@ export function initFirebaseSync(callbacks = {}) {
     console.warn(`Sinkronisasi ${collectionName} dialihkan ke database lokal (offline):`, err?.message || err);
   };
 
-  // 1. Produk & Stok
+  // 1. Koleksi Produk: Setiap perubahan barang dari HP manapun di-merge presisi
+  const productsQuery = query(collection(db, "products_catalog"));
   onSnapshot(
-    doc(db, "system_data", "products"),
-    async (snap) => {
-      if (snap.exists() && snap.data().list) {
-        state.productsDB = snap.data().list;
-        await setLocalItem("kholif_pos_products", state.productsDB);
-        markSync();
-        if (callbacks.onProductsChange) callbacks.onProductsChange();
+    productsQuery,
+    async (snapshot) => {
+      // Jika koleksi cloud belum ada (inisialisasi awal), migrasikan data lokal sekali
+      if (snapshot.empty && state.productsDB.length > 0) {
+        persistProducts();
+        return;
       }
+
+      const prodMap = new Map(state.productsDB.map((p) => [String(p.id), p]));
+
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        if (change.type === "removed") {
+          prodMap.delete(change.doc.id);
+        } else if (data && data.id) {
+          prodMap.set(String(data.id), data);
+        }
+      });
+
+      state.productsDB = Array.from(prodMap.values());
+      await setLocalItem("kholif_pos_products", state.productsDB);
+      markSync();
+      if (callbacks.onProductsChange) callbacks.onProductsChange();
     },
-    (err) => handleSyncError("products", err)
+    (err) => handleSyncError("products_catalog", err)
   );
 
   // 2. Member & Kasbon
@@ -490,18 +547,38 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("supplier_debts", err)
   );
 
-  // 8. Log Stok Opname
+  // 8. Log Stok Opname: Koleksi mandiri multi-user
+  const opnamesQuery = query(
+    collection(db, "inventory_opnames"),
+    orderBy("id", "desc"),
+    limit(150)
+  );
+
   onSnapshot(
-    doc(db, "system_data", "stock_opnames"),
-    async (snap) => {
-      if (snap.exists() && snap.data().list) {
-        state.stockOpnamesDB = snap.data().list;
-        await setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
-        markSync();
-        if (callbacks.onOpnamesChange) callbacks.onOpnamesChange();
+    opnamesQuery,
+    async (snapshot) => {
+      if (snapshot.empty && state.stockOpnamesDB.length > 0) {
+        persistOpnames();
+        return;
       }
+
+      const opnMap = new Map(state.stockOpnamesDB.map((o) => [String(o.id), o]));
+
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        if (change.type === "removed") {
+          opnMap.delete(change.doc.id);
+        } else if (data && data.id) {
+          opnMap.set(String(data.id), data);
+        }
+      });
+
+      state.stockOpnamesDB = Array.from(opnMap.values());
+      await setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
+      markSync();
+      if (callbacks.onOpnamesChange) callbacks.onOpnamesChange();
     },
-    (err) => handleSyncError("stock_opnames", err)
+    (err) => handleSyncError("inventory_opnames", err)
   );
 
   // 9. Status Fitur Operasional
@@ -518,7 +595,7 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("features_manifest", err)
   );
 
-  // 10. Data Kas Keuangan Toko
+  // 10. Data Kas Keuangan Toko (Owner & Kasir Realtime)
   onSnapshot(
     doc(db, "system_data", "finance"),
     async (snap) => {
