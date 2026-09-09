@@ -3,6 +3,11 @@ import {
   db, 
   doc, 
   setDoc, 
+  deleteDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
   onSnapshot 
 } from "../firebase-config.js";
 import { getLocalItem, setLocalItem, initLocalDB } from "./db-local.js";
@@ -301,14 +306,39 @@ export function persistOpnames() {
   });
 }
 
-export function persistSales() {
+// Menyimpan setiap transaksi sebagai dokumen mandiri tanpa batas potong 150
+export function persistSales(specificTrx = null) {
   setLocalItem("kholif_pos_sales", state.salesTransactions);
-  queueFirestoreSync("sales", () => {
+
+  if (specificTrx && specificTrx.id) {
     try {
-      const recentPool = state.salesTransactions.slice(0, 150);
-      setDoc(doc(db, "system_data", "sales"), { list: recentPool }, { merge: true });
-    } catch (e) {}
-  });
+      setDoc(doc(db, "sales_transactions", specificTrx.id), specificTrx, { merge: true });
+      state.lastSyncTimestamp = Date.now();
+    } catch (e) {
+      console.warn("Gagal sinkron transaksi ke Firestore:", e);
+    }
+  } else {
+    queueFirestoreSync("sales_batch", () => {
+      try {
+        const poolToSync = state.salesTransactions.slice(0, 50);
+        poolToSync.forEach((trx) => {
+          if (trx && trx.id) {
+            setDoc(doc(db, "sales_transactions", trx.id), trx, { merge: true });
+          }
+        });
+      } catch (e) {}
+    }, 400);
+  }
+}
+
+// Menghapus dokumen transaksi dari koleksi Firestore saat transaksi dihapus
+export function deleteSaleDoc(trxId) {
+  if (!trxId) return;
+  try {
+    deleteDoc(doc(db, "sales_transactions", trxId));
+  } catch (e) {
+    console.warn("Gagal hapus transaksi di Firestore:", e);
+  }
 }
 
 export function persistFinance() {
@@ -372,25 +402,36 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("members", err)
   );
 
-  // 3. Transaksi Penjualan
+  // 3. Transaksi Penjualan: Koleksi mandiri tanpa batas potong 150
+  const salesQuery = query(
+    collection(db, "sales_transactions"),
+    orderBy("timestamp", "desc"),
+    limit(300)
+  );
+
   onSnapshot(
-    doc(db, "system_data", "sales"),
-    async (snap) => {
-      if (snap.exists() && snap.data().list) {
-        const incomingList = snap.data().list;
-        const salesMap = new Map(state.salesTransactions.map((trx) => [trx.id, trx]));
-        incomingList.forEach((trx) => salesMap.set(trx.id, trx));
+    salesQuery,
+    async (snapshot) => {
+      const salesMap = new Map(state.salesTransactions.map((trx) => [trx.id, trx]));
 
-        state.salesTransactions = Array.from(salesMap.values()).sort((a, b) => {
-          return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
-        });
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        if (change.type === "removed") {
+          salesMap.delete(change.doc.id);
+        } else if (data && data.id) {
+          salesMap.set(data.id, data);
+        }
+      });
 
-        await setLocalItem("kholif_pos_sales", state.salesTransactions);
-        markSync();
-        if (callbacks.onSalesChange) callbacks.onSalesChange();
-      }
+      state.salesTransactions = Array.from(salesMap.values()).sort((a, b) => {
+        return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
+      });
+
+      await setLocalItem("kholif_pos_sales", state.salesTransactions);
+      markSync();
+      if (callbacks.onSalesChange) callbacks.onSalesChange();
     },
-    (err) => handleSyncError("sales", err)
+    (err) => handleSyncError("sales_transactions", err)
   );
 
   // 4. Akun Pengguna
