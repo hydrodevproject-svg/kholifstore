@@ -332,6 +332,14 @@ export function handleDeviceBackNavigation(callbacks = {}) {
       break;
     case "payPage":
       document.getElementById("payPageScreen")?.classList.remove("active");
+      document.getElementById("orderPanel")?.classList.remove("mobile-open");
+      {
+        const fabBtn = document.getElementById("btnOpenCartMobile");
+        if (fabBtn && !document.body.classList.contains("mode-tablet")) {
+          fabBtn.classList.remove("hidden");
+          fabBtn.style.display = "flex";
+        }
+      }
       break;
     case "drawer":
       document.getElementById("appDrawer")?.classList.remove("open");
@@ -339,9 +347,13 @@ export function handleDeviceBackNavigation(callbacks = {}) {
       break;
     case "mobileCart":
       document.getElementById("orderPanel")?.classList.remove("mobile-open");
-      // Perbaikan: Munculkan kembali tombol apung saat ditutup via tombol Back ponsel
-      const fabBtn = document.getElementById("btnOpenCartMobile");
-      if (fabBtn) fabBtn.style.display = "flex";
+      {
+        const fabBtn = document.getElementById("btnOpenCartMobile");
+        if (fabBtn && !document.body.classList.contains("mode-tablet")) {
+          fabBtn.classList.remove("hidden");
+          fabBtn.style.display = "flex";
+        }
+      }
       break;
     case "masterItSub":
       if (callbacks.closeMasterItSubMenu) callbacks.closeMasterItSubMenu();
