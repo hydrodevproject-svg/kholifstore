@@ -484,6 +484,7 @@ function initPosEvents() {
       if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
         appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
       }
+      appliedDiscount = Math.min(subtotalNum, appliedDiscount);
 
       const attachedMemberClone = state.currentAttachedMember ? {
         id: state.currentAttachedMember.id,
@@ -511,12 +512,14 @@ function initPosEvents() {
       state.salesTransactions.unshift(newTrx);
       persistSales();
 
-      // PENGELOLAAN MUTASI KEUANGAN: PEMISAHAN KAS FISIK DENGAN NON-TUNAI
       if (!state.financeDB) {
         state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
       }
       if (state.financeDB.digitalBalance === undefined) {
         state.financeDB.digitalBalance = 0;
+      }
+      if (state.financeDB.cashBalance === undefined) {
+        state.financeDB.cashBalance = 0;
       }
       if (!Array.isArray(state.financeDB.logs)) {
         state.financeDB.logs = [];
