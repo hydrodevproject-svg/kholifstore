@@ -43,7 +43,6 @@ export function deductProductStockFIFO(prod, deductQty) {
     remaining = 0;
   }
 
-  // Jika stok fisik melebihi sisa batch yang tercatat
   if (remaining > 0) {
     totalCost += remaining * (Number(prod.costPrice) || 0);
   }
@@ -439,7 +438,6 @@ function initPosEvents() {
       const inputPaidEl = document.getElementById("inputPaid");
       const paymentMethod = payMethod ? payMethod.value : "Tunai";
 
-      // 1. Kalkulasi angka transaksi murni dari memori state (Bebas dari manipulasi regex teks UI)
       const subtotalNum = state.cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
 
       let appliedDiscount = state.currentDiscountNominal;
@@ -477,7 +475,6 @@ function initPosEvents() {
         return;
       }
 
-      // 2. Potong stok gudang FIFO dan simpan HPP historis riil ke struk transaksi
       const snapshotItems = [];
       state.cart.forEach((cartItem) => {
         const prod = state.productsDB.find((p) => p.id === cartItem.id);
@@ -497,8 +494,8 @@ function initPosEvents() {
           cat: cartItem.cat || "",
           qty: cartItem.qty,
           price: cartItem.price,
-          costPrice: itemCostData.avgCostPrice, // HPP riil satuan saat transaksi terjadi
-          totalCost: itemCostData.totalCost,    // Total modal barang pada transaksi ini
+          costPrice: itemCostData.avgCostPrice,
+          totalCost: itemCostData.totalCost,
           subtotal: cartItem.price * cartItem.qty
         });
       });
@@ -548,7 +545,6 @@ function initPosEvents() {
       state.salesTransactions.unshift(newTrx);
       persistSales(newTrx);
 
-      // 3. Pencatatan Keuangan Terpisah: Kas Fisik vs Digital QRIS
       if (!state.financeDB) {
         state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
       }
@@ -674,6 +670,8 @@ function initPosEvents() {
     btnNewTransaction.onclick = () => {
       window.history.back();
       document.getElementById("orderPanel")?.classList.remove("mobile-open");
+      const fab = document.getElementById("btnOpenCartMobile");
+      if (fab) fab.style.display = "flex";
     };
   }
 
@@ -717,14 +715,23 @@ function initPosEvents() {
     };
   }
 
+  // PENANGANAN TOMBOL APUNG KERANJANG DI HP
   const btnOpenCartMobile = document.getElementById("btnOpenCartMobile");
+  const orderPanel = document.getElementById("orderPanel");
+
   if (btnOpenCartMobile) {
-    btnOpenCartMobile.onclick = () => document.getElementById("orderPanel")?.classList.add("mobile-open");
+    btnOpenCartMobile.onclick = () => {
+      orderPanel?.classList.add("mobile-open");
+      btnOpenCartMobile.style.display = "none";
+    };
   }
 
   const btnCloseCartMobile = document.getElementById("btnCloseCartMobile");
   if (btnCloseCartMobile) {
-    btnCloseCartMobile.onclick = () => document.getElementById("orderPanel")?.classList.remove("mobile-open");
+    btnCloseCartMobile.onclick = () => {
+      orderPanel?.classList.remove("mobile-open");
+      if (btnOpenCartMobile) btnOpenCartMobile.style.display = "flex";
+    };
   }
 }
 
