@@ -298,7 +298,6 @@ export function attachMember(member) {
 }
 
 function initPosEvents() {
-  // Event Delegation untuk Katalog Produk
   const productsGrid = document.getElementById("productsGrid");
   if (productsGrid) {
     productsGrid.addEventListener("click", (e) => {
@@ -310,7 +309,6 @@ function initPosEvents() {
     });
   }
 
-  // Event Delegation untuk Keranjang Belanja (+ / - stepper)
   const orderList = document.getElementById("orderList");
   if (orderList) {
     orderList.addEventListener("click", (e) => {
@@ -513,17 +511,37 @@ function initPosEvents() {
       state.salesTransactions.unshift(newTrx);
       persistSales();
 
-      if (paymentMethod !== "Piutang / Kasbon") {
-        if (!state.financeDB) state.financeDB = { cashBalance: 0, logs: [] };
+      // PENGELOLAAN MUTASI KEUANGAN: PEMISAHAN KAS FISIK DENGAN NON-TUNAI
+      if (!state.financeDB) {
+        state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+      }
+      if (state.financeDB.digitalBalance === undefined) {
+        state.financeDB.digitalBalance = 0;
+      }
+      if (!Array.isArray(state.financeDB.logs)) {
+        state.financeDB.logs = [];
+      }
+
+      if (paymentMethod === "Tunai") {
         state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
-        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
-        
         state.financeDB.logs.unshift({
           id: `FIN-${Date.now()}`,
           time: fullDateTimeStr,
-          type: "Penjualan Kasir",
+          type: "Penjualan Kasir (Tunai)",
           amount: grandTotalNum,
-          note: `Penerimaan POS: ${trxId} (${paymentMethod})`,
+          note: `Penerimaan Kasir Tunai: ${trxId}`,
+          admin: state.currentUser ? state.currentUser.name : "Kasir"
+        });
+        persistFinance();
+        renderFinanceDashboard();
+      } else if (paymentMethod === "Transfer / QRIS") {
+        state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + grandTotalNum;
+        state.financeDB.logs.unshift({
+          id: `FIN-${Date.now()}`,
+          time: fullDateTimeStr,
+          type: "Penjualan Kasir (QRIS)",
+          amount: grandTotalNum,
+          note: `Penerimaan Non-Tunai Bank/QRIS: ${trxId}`,
           admin: state.currentUser ? state.currentUser.name : "Kasir"
         });
         persistFinance();
