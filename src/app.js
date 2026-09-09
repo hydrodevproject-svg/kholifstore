@@ -26,7 +26,7 @@ import {
 } from "./ui.js";
 import { initPrinterSettings } from "./printer.js";
 import { initInventoryModule, renderAllInventoryData, closeInvSubMenu } from "./inventory.js";
-import { initPurchasesModule, renderPurchasesTable, renderSupplierDebtsTable } from "./purchases.js";
+import { initPurchasesModule, renderPurchasesTable, renderSupplierDebtsTable, selectPurchProductFromScanner } from "./purchases.js";
 import { initMembersModule, renderAllMemberData, closeMemberSubMenu } from "./members.js";
 import { initPosModule, renderCategories, renderProducts, renderCart, addToCart, attachMember } from "./pos.js";
 import { initReportsModule, renderReports } from "./reports.js";
@@ -405,7 +405,6 @@ function initSettingsModule() {
     });
   }
 
-  // Event Listener Sub-Menu Tutup Buku & Keuangan
   const btnMonthlyClosing = document.getElementById("btnMonthlyClosingFinance");
   if (btnMonthlyClosing) {
     btnMonthlyClosing.onclick = async () => {
@@ -537,7 +536,7 @@ function initSettingsModule() {
 
       const conf = await showThemedPrompt("Konfirmasi Reset", "Ketik kata 'RESET' dengan huruf kapital untuk menyetujui:", "", "Ketik RESET");
       if (conf === "RESET") {
-        state.financeDB = { cashBalance: 0, logs: [] };
+        state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
         persistFinance();
         renderFinanceDashboard();
         debouncedUpdateMetrics();
@@ -1443,7 +1442,17 @@ function initHardwareScanner() {
     const activeTag = activeEl ? activeEl.tagName : "";
     const activeId = activeEl ? activeEl.id : "";
 
-    if (activeTag === "INPUT" && activeId !== "productSearch" && activeId !== "prodFormBarcode") {
+    // Daftar input pencarian dan barcode yang didukung penuh scanner fisik
+    const allowedScannerInputs = [
+      "productSearch",
+      "prodFormBarcode",
+      "purchProductSearchInput",
+      "opnameProductSearchInput",
+      "posMemberSearchInput"
+    ];
+
+    if (activeTag === "TEXTAREA") return;
+    if (activeTag === "INPUT" && !allowedScannerInputs.includes(activeId)) {
       return;
     }
 
@@ -1456,8 +1465,9 @@ function initHardwareScanner() {
         e.preventDefault();
         processScannedBarcode(barcodeBuffer.trim());
         barcodeBuffer = "";
-        const s = document.getElementById("productSearch");
-        if (s) s.value = "";
+        if (activeEl && allowedScannerInputs.includes(activeId) && activeId !== "prodFormBarcode") {
+          activeEl.value = "";
+        }
       }
       return;
     }
@@ -1487,6 +1497,7 @@ function initHardwareScanner() {
 }
 
 async function processScannedBarcode(code) {
+  // 1. Layar Form Tambah / Edit Barang Baru
   const prodPage = document.getElementById("productPageScreen");
   const prodBarcodeInp = document.getElementById("prodFormBarcode");
   if (prodPage && prodPage.classList.contains("active") && prodBarcodeInp) {
@@ -1496,6 +1507,56 @@ async function processScannedBarcode(code) {
     return;
   }
 
+  // 2. Layar Pemilih Barang Faktur Pembelian Supplier
+  const purchPicker = document.getElementById("purchProductPickerScreen");
+  if (purchPicker && purchPicker.classList.contains("active")) {
+    const prod = state.productsDB.find((p) => p && (String(p.barcode) === code || String(p.id) === code));
+    if (prod) {
+      playScannerBeep(true);
+      showScanToast(`Dipilih: ${prod.name}`);
+      selectPurchProductFromScanner(prod);
+    } else {
+      playScannerBeep(false);
+      await showThemedAlert("Tidak Ditemukan", `Barang dengan barcode "${code}" belum terdaftar di katalog.`, "error");
+    }
+    return;
+  }
+
+  // 3. Layar Pemilih Barang Audit Stok Opname
+  const opnamePicker = document.getElementById("opnameProductPickerScreen");
+  if (opnamePicker && opnamePicker.classList.contains("active")) {
+    const prod = state.productsDB.find((p) => p && (String(p.barcode) === code || String(p.id) === code));
+    if (prod) {
+      playScannerBeep(true);
+      document.getElementById("opnameSelectedProductId").value = prod.id;
+      document.getElementById("opnameSelectedProductName").textContent = prod.name;
+      document.getElementById("opnameSystemStock").value = `${prod.stock} pcs`;
+      window.history.back();
+      showScanToast(`Audit: ${prod.name}`);
+      setTimeout(() => document.getElementById("opnamePhysicalStock")?.focus(), 200);
+    } else {
+      playScannerBeep(false);
+      await showThemedAlert("Tidak Ditemukan", `Barang dengan barcode "${code}" tidak ditemukan.`, "error");
+    }
+    return;
+  }
+
+  // 4. Layar Pemilih Member di Meja Kasir
+  const memberPicker = document.getElementById("posMemberPickerScreen");
+  if (memberPicker && memberPicker.classList.contains("active")) {
+    const matchedMember = state.membersDB.find((m) => m.phone === code || m.id === code);
+    if (matchedMember) {
+      attachMember(matchedMember);
+      playScannerBeep(true);
+      window.history.back();
+    } else {
+      playScannerBeep(false);
+      await showThemedAlert("Member Tidak Ditemukan", `Member dengan ID / WA "${code}" tidak ditemukan.`, "error");
+    }
+    return;
+  }
+
+  // 5. Layar Utama POS (Meja Kasir)
   const matchedMember = state.membersDB.find((m) => m.phone === code || m.id === code);
   if (matchedMember) {
     attachMember(matchedMember);
