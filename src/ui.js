@@ -339,6 +339,9 @@ export function handleDeviceBackNavigation(callbacks = {}) {
       break;
     case "mobileCart":
       document.getElementById("orderPanel")?.classList.remove("mobile-open");
+      // Perbaikan: Munculkan kembali tombol apung saat ditutup via tombol Back ponsel
+      const fabBtn = document.getElementById("btnOpenCartMobile");
+      if (fabBtn) fabBtn.style.display = "flex";
       break;
     case "masterItSub":
       if (callbacks.closeMasterItSubMenu) callbacks.closeMasterItSubMenu();
