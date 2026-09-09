@@ -34,6 +34,7 @@ import { initFinanceModule, renderFinanceDashboard, closeFinanceSubMenu } from "
 import { playScannerBeep, showScanToast, debounce, hashPassword } from "./utils.js";
 
 const MAX_CONSOLE_RENDER = 50;
+let isProcessingBarcode = false;
 
 export const debouncedUpdateMetrics = debounce(() => {
   updateMetricsDashboard();
@@ -160,7 +161,7 @@ export function switchView(viewId) {
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "none";
 
-    // Pulihkan tombol keranjang apung untuk tampilan mobile
+    // Pulihkan tombol apung jika di mode ponsel
     if (!isTabletOrDesktop && fab) {
       fab.classList.remove("hidden");
       fab.style.display = "flex";
@@ -170,7 +171,7 @@ export function switchView(viewId) {
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "block";
 
-    // Sembunyikan tombol keranjang apung di luar menu POS
+    // Sembunyikan tombol apung di luar menu POS
     if (fab) {
       fab.classList.add("hidden");
       fab.style.display = "none";
@@ -1511,11 +1512,12 @@ function initHardwareScanner() {
     if (e.key === "Enter") {
       if (barcodeBuffer.length >= 3) {
         e.preventDefault();
-        processScannedBarcode(barcodeBuffer.trim());
+        const codeToProcess = barcodeBuffer.trim();
         barcodeBuffer = "";
         if (activeEl && allowedScannerInputs.includes(activeId) && activeId !== "prodFormBarcode") {
           activeEl.value = "";
         }
+        processScannedBarcode(codeToProcess);
       }
       return;
     }
@@ -1528,6 +1530,8 @@ function initHardwareScanner() {
     searchEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation(); // Mencegah propagasi ke window listener
+        barcodeBuffer = ""; // Kosongkan buffer agar tidak tereksekusi dua kali
         const val = searchEl.value.trim();
         if (val) processScannedBarcode(val);
         searchEl.value = "";
@@ -1545,6 +1549,15 @@ function initHardwareScanner() {
 }
 
 async function processScannedBarcode(code) {
+  if (!code) return;
+
+  // Throttle scanner hardware: cegah bounce scan ganda dalam 250ms
+  if (isProcessingBarcode) return;
+  isProcessingBarcode = true;
+  setTimeout(() => {
+    isProcessingBarcode = false;
+  }, 250);
+
   // 1. Layar Form Tambah / Edit Barang Baru
   const prodPage = document.getElementById("productPageScreen");
   const prodBarcodeInp = document.getElementById("prodFormBarcode");
