@@ -119,7 +119,7 @@ async function sendRawBluetooth(dataBuffer) {
 export async function printThermalReceipt(trx) {
   if (bleCharacteristic && bleDevice && bleDevice.gatt.connected) {
     try {
-      showScanToast("Mencetak nota...");
+      showScanToast("Mencetak nota via Bluetooth...");
       const maxCol = state.printerConfig.paperWidth === "80mm" ? 48 : 32;
       const encoder = new TextEncoder();
       let stream = "";
@@ -165,11 +165,12 @@ export async function printThermalReceipt(trx) {
       return;
     } catch (err) {
       console.error("Gagal cetak Bluetooth:", err);
-      showScanToast("Cetak Bluetooth gagal");
+      showScanToast("Bluetooth gagal, membuka dialog cetak sistem...");
     }
   }
 
-  showScanToast("Printer Bluetooth belum tersambung");
+  // Fallback otomatis ke dialog printer bawaan OS / browser jika Bluetooth tidak terhubung
+  printAdvanceSystemDialog(trx);
 }
 
 export function printAdvanceSystemDialog(trx) {
@@ -182,7 +183,7 @@ export function printAdvanceSystemDialog(trx) {
     itemsHtml = trx.items.map((i) => `
       <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
         <span>${i.name} x${i.qty}</span>
-        <span>Rp ${i.subtotal.toLocaleString("id-ID")}</span>
+        <span>Rp ${Number(i.subtotal || 0).toLocaleString("id-ID")}</span>
       </div>
     `).join("");
   }
@@ -206,11 +207,11 @@ export function printAdvanceSystemDialog(trx) {
       ${trx.discount > 0 ? `
       <div style="display:flex; justify-content:space-between; font-size:10px;">
         <span>Diskon Tunai:</span>
-        <span>- Rp ${trx.discount.toLocaleString("id-ID")}</span>
+        <span>- Rp ${Number(trx.discount).toLocaleString("id-ID")}</span>
       </div>` : ""}
       <div style="display:flex; justify-content:space-between;">
         <strong>TOTAL:</strong>
-        <strong>Rp ${trx.total.toLocaleString("id-ID")}</strong>
+        <strong>Rp ${Number(trx.total || 0).toLocaleString("id-ID")}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:2px;">
         <span>Metode:</span>
