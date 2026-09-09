@@ -1,6 +1,6 @@
 // src/members.js
 import { state, persistMembers } from "./state.js";
-import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
+import { showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { generateWhatsAppText } from "./printer.js";
 
@@ -16,28 +16,28 @@ export function initMembersModule() {
 
   function openMemberSubMenu(subId) {
     state.activeMemberSubMenuId = subId;
-    panelSubMemberList.classList.add("hidden");
-    panelSubMemberDebt.classList.add("hidden");
-    panelSubMemberOrders.classList.add("hidden");
+    if (panelSubMemberList) panelSubMemberList.classList.add("hidden");
+    if (panelSubMemberDebt) panelSubMemberDebt.classList.add("hidden");
+    if (panelSubMemberOrders) panelSubMemberOrders.classList.add("hidden");
 
     let title = "Member & Pelanggan";
     if (subId === "subMemberList") {
-      panelSubMemberList.classList.remove("hidden");
+      if (panelSubMemberList) panelSubMemberList.classList.remove("hidden");
       title = "Daftar Member Pelanggan";
       renderMemberList();
     } else if (subId === "subMemberDebt") {
-      panelSubMemberDebt.classList.remove("hidden");
+      if (panelSubMemberDebt) panelSubMemberDebt.classList.remove("hidden");
       title = "Buku Kasbon & Piutang Member";
       renderMemberDebts();
     } else if (subId === "subMemberOrders") {
-      panelSubMemberOrders.classList.remove("hidden");
+      if (panelSubMemberOrders) panelSubMemberOrders.classList.remove("hidden");
       title = "Riwayat Belanja Member";
       renderMemberOrders();
     }
 
-    memberSubTitle.textContent = title;
-    memberMenuView.classList.add("hidden");
-    memberDetailView.classList.remove("hidden");
+    if (memberSubTitle) memberSubTitle.textContent = title;
+    if (memberMenuView) memberMenuView.classList.add("hidden");
+    if (memberDetailView) memberDetailView.classList.remove("hidden");
     reinforceHistoryBarrier();
   }
 
@@ -46,7 +46,7 @@ export function initMembersModule() {
   });
 
   if (btnBackMemberSubMenu) {
-    btnBackMemberSubMenu.onclick = () => window.history.back();
+    btnBackMemberSubMenu.onclick = () => closeMemberSubMenu();
   }
 
   const memberSearch = document.getElementById("memberSearch");
@@ -165,6 +165,11 @@ export function renderMemberList() {
 
   const totalEl = document.getElementById("memberCountTotal");
   if (totalEl) totalEl.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary); padding: 18px;">Tidak ada data member yang sesuai.</td></tr>`;
+    return;
+  }
 
   tbody.innerHTML = filtered.map((m) => `
     <tr>
