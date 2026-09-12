@@ -31,7 +31,7 @@ import { initMembersModule, renderAllMemberData, closeMemberSubMenu } from "./me
 import { initPosModule, renderCategories, renderProducts, renderCart, addToCart, attachMember } from "./pos.js";
 import { initReportsModule, renderReports } from "./reports.js";
 import { initFinanceModule, renderFinanceDashboard, closeFinanceSubMenu } from "./finance.js";
-import { playScannerBeep, showScanToast, debounce, hashPassword } from "./utils.js";
+import { playScannerBeep, showScanToast, debounce, hashPassword, authenticateBiometrics } from "./utils.js";
 
 const MAX_CONSOLE_RENDER = 50;
 let isProcessingBarcode = false;
@@ -436,9 +436,13 @@ function initSettingsModule() {
     });
   }
 
+  // 1. Otorisasi Biometrik: Tutup Buku Bulanan
   const btnMonthlyClosing = document.getElementById("btnMonthlyClosingFinance");
   if (btnMonthlyClosing) {
     btnMonthlyClosing.onclick = async () => {
+      const isAuthorized = await authenticateBiometrics("Tutup Buku Bulanan");
+      if (!isAuthorized) return;
+
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -468,15 +472,12 @@ function initSettingsModule() {
         }
       });
 
-      // Laba kotor riil tanpa limitasi 0
       const grossProfit = totalRev - totalHpp;
-
       const totalOpex = (state.financeDB?.logs || [])
         .filter((l) => l.type === "Biaya Operasional")
         .reduce((acc, l) => acc + Number(l.amount || 0), 0);
 
       const netProfit = grossProfit - totalOpex;
-
       const grossText = `${grossProfit < 0 ? '-' : ''}Rp ${Math.abs(grossProfit).toLocaleString("id-ID")}`;
       const netText = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
 
@@ -508,9 +509,13 @@ function initSettingsModule() {
     };
   }
 
+  // 2. Otorisasi Biometrik: Tutup Buku Tahunan
   const btnAnnualClosing = document.getElementById("btnAnnualClosingFinance");
   if (btnAnnualClosing) {
     btnAnnualClosing.onclick = async () => {
+      const isAuthorized = await authenticateBiometrics("Tutup Buku Tahunan");
+      if (!isAuthorized) return;
+
       const now = new Date();
       const currentYear = now.getFullYear();
 
@@ -539,13 +544,11 @@ function initSettingsModule() {
       });
 
       const grossProfit = totalRev - totalHpp;
-
       const totalOpex = (state.financeDB?.logs || [])
         .filter((l) => l.type === "Biaya Operasional")
         .reduce((acc, l) => acc + Number(l.amount || 0), 0);
 
       const netProfit = grossProfit - totalOpex;
-
       const grossText = `${grossProfit < 0 ? '-' : ''}Rp ${Math.abs(grossProfit).toLocaleString("id-ID")}`;
       const netText = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
 
@@ -577,9 +580,13 @@ function initSettingsModule() {
     };
   }
 
+  // 3. Otorisasi Biometrik: Reset Data Keuangan & Kas
   const btnResetFinance = document.getElementById("btnResetFinanceData");
   if (btnResetFinance) {
     btnResetFinance.onclick = async () => {
+      const isAuthorized = await authenticateBiometrics("Reset Data Keuangan & Kas");
+      if (!isAuthorized) return;
+
       const ok = await showThemedConfirm(
         "Reset Data Keuangan",
         "PERINGATAN! Semua riwayat mutasi kas akan dihapus dan saldo kas fisik toko akan dikembalikan ke Rp 0.",
@@ -649,6 +656,7 @@ function initSettingsModule() {
     btnTemplate.onclick = () => downloadInventoryCsvTemplate();
   }
 
+  // 4. Otorisasi Biometrik: Hapus Semua Data Transaksi (Master IT)
   const btnClear = document.getElementById("btnClearAllTransactions");
   if (btnClear) {
     btnClear.onclick = async () => {
@@ -656,6 +664,10 @@ function initSettingsModule() {
         await showThemedAlert("Data Bersih", "Riwayat transaksi sudah kosong.", "info");
         return;
       }
+
+      const isAuthorized = await authenticateBiometrics("Kosongkan Semua Transaksi");
+      if (!isAuthorized) return;
+
       const ok = await showThemedConfirm("Hapus Seluruh Data", "PERINGATAN! Semua riwayat transaksi akan dihapus permanen.", "Hapus Semua", "Batal");
       if (!ok) return;
 
@@ -1627,7 +1639,7 @@ async function processScannedBarcode(code) {
     return;
   }
 
-  // 5. Layar Kasir Utama (Cek Member lalu Produk)
+  // 5. Layar Kasir Utama
   const matchedMember = state.membersDB.find((m) => m && (String(m.phone || "").trim() === code || String(m.id || "").trim() === code));
   if (matchedMember) {
     attachMember(matchedMember);
