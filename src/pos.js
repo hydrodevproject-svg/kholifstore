@@ -39,7 +39,7 @@ export function deductProductStockFIFO(prod, deductQty) {
     prod.stock = prod.batches.reduce((sum, b) => sum + b.qty, 0);
     refreshProductPriceFromBatches(prod);
   } else {
-    prod.stock = Math.max(0, (prod.stock || 0) - deductQty);
+    prod.stock = Math.max(0, (Number(prod.stock) || 0) - deductQty);
     totalCost = deductQty * (Number(prod.costPrice) || 0);
     remaining = 0;
   }
@@ -89,10 +89,11 @@ export function renderProducts() {
 
   const query = state.searchQuery.toLowerCase().trim();
   const filtered = state.productsDB.filter((p) => {
+    if (!p) return false;
     const matchCat = state.currentCategory === "all" || p.cat === state.currentCategory;
     const matchSearch = !query ||
-      p.name.toLowerCase().includes(query) ||
-      (p.barcode && p.barcode.includes(query));
+      (p.name && p.name.toLowerCase().includes(query)) ||
+      (p.barcode && String(p.barcode).includes(query));
     return matchCat && matchSearch;
   });
 
@@ -100,10 +101,10 @@ export function renderProducts() {
   const frag = document.createDocumentFragment();
 
   displayList.forEach((p) => {
-    const isOutOfStock = p.stock <= 0;
+    const isOutOfStock = (Number(p.stock) || 0) <= 0;
     const row = document.createElement("div");
     row.className = `product-list-row ${isOutOfStock ? "out-of-stock" : ""}`;
-    row.setAttribute("data-product-id", p.id);
+    row.setAttribute("data-product-id", String(p.id));
 
     row.innerHTML = `
       <div class="prod-row-left">
@@ -111,7 +112,7 @@ export function renderProducts() {
         <div class="prod-meta">
           <span class="prod-name-title">${p.name}</span>
           <div class="prod-submeta">
-            <span class="prod-cat-badge">${p.cat}</span>
+            <span class="prod-cat-badge">${p.cat || "Umum"}</span>
             <span class="prod-stock-badge ${isOutOfStock ? "empty" : ""}">
               ${isOutOfStock ? "Stok Habis" : `Sisa ${p.stock}`}
             </span>
@@ -119,7 +120,7 @@ export function renderProducts() {
         </div>
       </div>
       <div class="prod-row-right">
-        <span class="prod-price-text">Rp ${p.price.toLocaleString("id-ID")}</span>
+        <span class="prod-price-text">Rp ${Number(p.price || 0).toLocaleString("id-ID")}</span>
         <div class="btn-add-circle">
           <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -138,7 +139,7 @@ export function renderProducts() {
 export function renderCart() {
   const orderList = document.getElementById("orderList");
   if (!orderList) return;
-  const totalCount = state.cart.reduce((acc, cur) => acc + cur.qty, 0);
+  const totalCount = state.cart.reduce((acc, cur) => acc + (Number(cur.qty) || 0), 0);
 
   const cartCountEl = document.getElementById("mobileCartCount");
   if (cartCountEl) cartCountEl.textContent = totalCount;
@@ -178,21 +179,23 @@ export function renderCart() {
   let subtotal = 0;
 
   state.cart.forEach((item) => {
-    const sub = item.price * item.qty;
+    const priceNum = Number(item.price) || 0;
+    const qtyNum = Number(item.qty) || 0;
+    const sub = priceNum * qtyNum;
     subtotal += sub;
 
     const row = document.createElement("div");
     row.className = "order-card-item";
-    row.setAttribute("data-cart-id", item.id);
+    row.setAttribute("data-cart-id", String(item.id));
     row.innerHTML = `
       <div class="order-card-info">
         <strong>${item.name}</strong>
-        <span>Rp ${item.price.toLocaleString("id-ID")}</span>
+        <span>Rp ${priceNum.toLocaleString("id-ID")}</span>
       </div>
       <div class="stepper">
-        <button type="button" class="btn-minus" data-id="${item.id}">-</button>
-        <span>${item.qty}</span>
-        <button type="button" class="btn-plus" data-id="${item.id}">+</button>
+        <button type="button" class="btn-minus" data-id="${String(item.id)}">-</button>
+        <span>${qtyNum}</span>
+        <button type="button" class="btn-plus" data-id="${String(item.id)}">+</button>
       </div>
       <div class="order-row-subtotal">Rp ${sub.toLocaleString("id-ID")}</div>
     `;
@@ -206,7 +209,7 @@ export function renderCart() {
   if (state.currentDiscountNominal > 0) {
     discountDeduction = state.currentDiscountNominal;
   } else if (state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
-    const rawDisc = subtotal * (state.currentAttachedMember.discount / 100);
+    const rawDisc = subtotal * (Number(state.currentAttachedMember.discount) / 100);
     discountDeduction = Math.round(rawDisc / 500) * 500;
   }
 
@@ -251,13 +254,13 @@ export function renderCart() {
 }
 
 export async function addToCart(prod, fromScanner = false) {
-  const currentProd = state.productsDB.find((p) => p.id === prod.id);
-  if (!currentProd || currentProd.stock <= 0) {
+  const currentProd = state.productsDB.find((p) => String(p.id) === String(prod.id));
+  if (!currentProd || (Number(currentProd.stock) || 0) <= 0) {
     if (!fromScanner) await showThemedAlert("Stok Habis", `Produk "${prod.name}" sedang habis.`, "error");
     return false;
   }
 
-  const existing = state.cart.find((i) => i.id === prod.id);
+  const existing = state.cart.find((i) => String(i.id) === String(prod.id));
   if (existing) {
     if (existing.qty >= currentProd.stock) {
       if (!fromScanner) await showThemedAlert("Batas Stok", `Sisa stok hanya tersisa ${currentProd.stock} pcs.`, "info");
@@ -273,10 +276,10 @@ export async function addToCart(prod, fromScanner = false) {
 }
 
 export async function updateQty(id, delta) {
-  const item = state.cart.find((i) => i.id === id);
+  const item = state.cart.find((i) => String(i.id) === String(id));
   if (!item) return;
 
-  const currentProd = state.productsDB.find((p) => p.id === id);
+  const currentProd = state.productsDB.find((p) => String(p.id) === String(id));
   if (delta > 0 && currentProd && item.qty + delta > currentProd.stock) {
     await showThemedAlert("Batas Maksimal", `Sisa stok hanya tersisa ${currentProd.stock} pcs.`, "info");
     return;
@@ -284,7 +287,7 @@ export async function updateQty(id, delta) {
 
   item.qty += delta;
   if (item.qty <= 0) {
-    state.cart = state.cart.filter((i) => i.id !== id);
+    state.cart = state.cart.filter((i) => String(i.id) !== String(id));
     if (state.cart.length === 0) {
       state.currentDiscountNominal = 0;
     }
@@ -313,8 +316,8 @@ function initPosEvents() {
     productsGrid.addEventListener("click", (e) => {
       const row = e.target.closest(".product-list-row");
       if (!row || row.classList.contains("out-of-stock")) return;
-      const pId = Number(row.getAttribute("data-product-id"));
-      const prod = state.productsDB.find((p) => p.id === pId);
+      const pId = row.getAttribute("data-product-id");
+      const prod = state.productsDB.find((p) => String(p.id) === String(pId));
       if (prod) addToCart(prod);
     });
   }
@@ -324,12 +327,12 @@ function initPosEvents() {
     orderList.addEventListener("click", (e) => {
       const minusBtn = e.target.closest(".btn-minus");
       if (minusBtn) {
-        updateQty(Number(minusBtn.getAttribute("data-id")), -1);
+        updateQty(minusBtn.getAttribute("data-id"), -1);
         return;
       }
       const plusBtn = e.target.closest(".btn-plus");
       if (plusBtn) {
-        updateQty(Number(plusBtn.getAttribute("data-id")), 1);
+        updateQty(plusBtn.getAttribute("data-id"), 1);
       }
     });
   }
@@ -354,7 +357,6 @@ function initPosEvents() {
       if (paySuccessView) paySuccessView.classList.add("hidden");
       if (payTotalBig && valGrandTotal) payTotalBig.textContent = valGrandTotal.textContent;
 
-      // Reset metode bayar dan input tunai ke default
       if (payMethodSelect) payMethodSelect.value = "Tunai";
       if (inputPaid) {
         inputPaid.value = "";
@@ -486,7 +488,7 @@ function initPosEvents() {
             await showThemedAlert("Pilih Member", "Pembayaran Kasbon hanya diperbolehkan jika data Member dipilih!", "error");
             return;
           }
-          const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
+          const mbr = state.membersDB.find((x) => String(x.id) === String(state.currentAttachedMember.id));
           if (mbr) {
             mbr.debt = (Number(mbr.debt) || 0) + grandTotalNum;
             persistMembers();
@@ -506,7 +508,7 @@ function initPosEvents() {
         const modifiedProducts = [];
 
         state.cart.forEach((cartItem) => {
-          const prod = state.productsDB.find((p) => p.id === cartItem.id);
+          const prod = state.productsDB.find((p) => String(p.id) === String(cartItem.id));
           let itemCostData = { 
             totalCost: (Number(cartItem.costPrice) || 0) * cartItem.qty, 
             avgCostPrice: Number(cartItem.costPrice) || 0 
@@ -530,12 +532,11 @@ function initPosEvents() {
           });
         });
 
-        // Tulis hanya produk yang mengalami perubahan stok ke Firestore
         persistProducts(modifiedProducts);
 
         if (state.currentAttachedMember) {
           const earned = Math.floor(grandTotalNum / 1000);
-          const mbr = state.membersDB.find((x) => x.id === state.currentAttachedMember.id);
+          const mbr = state.membersDB.find((x) => String(x.id) === String(state.currentAttachedMember.id));
           if (mbr) {
             mbr.points = (Number(mbr.points) || 0) + earned;
             persistMembers();
@@ -548,7 +549,6 @@ function initPosEvents() {
         const clockFormatted = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
         const fullDateTimeStr = `${dayName}, ${dateFormatted} • ${clockFormatted}`;
 
-        // ID Transaksi unik berbasis timestamp + 2 digit acak
         const trxId = `TRX-${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
         const actualPaid = paymentMethod === "Transfer / QRIS" && rawPaid === 0 ? grandTotalNum : rawPaid;
         const changeNum = Math.max(0, actualPaid - grandTotalNum);
@@ -556,7 +556,7 @@ function initPosEvents() {
         const attachedMemberClone = state.currentAttachedMember ? {
           id: state.currentAttachedMember.id,
           name: state.currentAttachedMember.name,
-          phone: state.currentAttachedMember.phone || state.currentAttachedMember.wa || state.currentAttachedMember.telepon || "",
+          phone: state.currentAttachedMember.phone || state.currentAttachedMember.wa || "",
           tier: state.currentAttachedMember.tier || ""
         } : null;
 
@@ -582,15 +582,9 @@ function initPosEvents() {
         if (!state.financeDB) {
           state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
         }
-        if (state.financeDB.digitalBalance === undefined) {
-          state.financeDB.digitalBalance = 0;
-        }
-        if (state.financeDB.cashBalance === undefined) {
-          state.financeDB.cashBalance = 0;
-        }
-        if (!Array.isArray(state.financeDB.logs)) {
-          state.financeDB.logs = [];
-        }
+        if (state.financeDB.digitalBalance === undefined) state.financeDB.digitalBalance = 0;
+        if (state.financeDB.cashBalance === undefined) state.financeDB.cashBalance = 0;
+        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
 
         if (paymentMethod === "Tunai") {
           state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
@@ -611,7 +605,7 @@ function initPosEvents() {
             time: fullDateTimeStr,
             type: "Penjualan Kasir (QRIS)",
             amount: grandTotalNum,
-            note: `Penerimaan Non-Tunai Bank/QRIS: ${trxId}`,
+            note: `Penerimaan QRIS / Transfer: ${trxId}`,
             admin: state.currentUser ? state.currentUser.name : "Kasir"
           });
           persistFinance();
@@ -679,13 +673,13 @@ function initPosEvents() {
 
       let rawPhone = "";
       if (trx.member) {
-        rawPhone = trx.member.phone || trx.member.wa || trx.member.telepon || "";
+        rawPhone = trx.member.phone || trx.member.wa || "";
       }
 
       if (!rawPhone && trx.member && trx.member.name) {
         const found = state.membersDB.find((m) => m.name.trim().toLowerCase() === trx.member.name.trim().toLowerCase());
         if (found) {
-          rawPhone = found.phone || found.wa || found.telepon || "";
+          rawPhone = found.phone || found.wa || "";
         }
       }
 
@@ -727,7 +721,7 @@ function initPosEvents() {
         if (state.savedHeldCart && state.savedHeldCart.cart.length > 0) {
           const confirmOverwrite = await showThemedConfirm(
             "Timpa Pesanan Tertahan?",
-            "Sudah ada pesanan yang ditahan sebelumnya. Jika Anda menahan keranjang saat ini, pesanan tertahan sebelumnya akan terganti.",
+            "Sudah ada pesanan yang ditahan sebelumnya. Jika Anda menahan keranjang saat ini, pesanan sebelumnya akan terganti.",
             "Timpa Pesanan",
             "Batal"
           );
@@ -766,7 +760,6 @@ function initPosEvents() {
     };
   }
 
-  // Penanganan tombol apung keranjang di HP
   const btnOpenCartMobile = document.getElementById("btnOpenCartMobile");
   const orderPanel = document.getElementById("orderPanel");
 
@@ -840,12 +833,10 @@ function renderPosMemberPicker(q = "") {
   if (!list) return;
   list.innerHTML = "";
 
-  const filtered = state.membersDB.filter(
-    (m) => {
-      const p = m.phone || m.wa || "";
-      return m.name.toLowerCase().includes(q) || p.includes(q) || (m.id && m.id.toLowerCase().includes(q));
-    }
-  );
+  const filtered = state.membersDB.filter((m) => {
+    const p = m.phone || m.wa || "";
+    return m.name.toLowerCase().includes(q) || p.includes(q) || (m.id && String(m.id).toLowerCase().includes(q));
+  });
 
   if (filtered.length === 0) {
     list.innerHTML = `
