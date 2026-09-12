@@ -8,11 +8,13 @@ import {
   getDoc, 
   setDoc, 
   onSnapshot, 
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  limit 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  orderBy, 
+  limit,
+  runTransaction,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -29,7 +31,6 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
 
-// Menggunakan autoDetectLongPolling untuk menjaga kestabilan stream jaringan di perangkat seluler
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true
 });
@@ -46,5 +47,7 @@ export {
   deleteDoc, 
   query, 
   orderBy, 
-  limit 
+  limit,
+  runTransaction,
+  writeBatch
 };
