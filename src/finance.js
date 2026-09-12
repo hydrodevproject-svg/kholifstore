@@ -47,7 +47,7 @@ export function openFinanceSubMenu(subId) {
   if (subId === "finSubWithdrawProfit") {
     sTitle.textContent = "Tarik Keuntungan Toko";
     inNote.placeholder = "Cth: Bagi hasil keuntungan bulan ini";
-    bannerText.textContent = "Penarikan dividen/keuntungan akan mengurangi saldo kas fisik saat ini.";
+    bannerText.textContent = "Penarikan dividen atau keuntungan akan mengurangi saldo kas fisik toko saat ini.";
   } else if (subId === "finSubWithdrawCapital") {
     sTitle.textContent = "Tarik Modal Usaha";
     inNote.placeholder = "Cth: Penarikan kembali modal awal";
@@ -60,6 +60,10 @@ export function openFinanceSubMenu(subId) {
     sTitle.textContent = "Setor Modal Kas Toko";
     inNote.placeholder = "Cth: Tambahan modal kas kecil / kembalian kasir";
     bannerText.textContent = "Uang tunai yang disetorkan akan menambah total saldo kas fisik yang dapat digunakan.";
+  } else if (subId === "finSubSettleDigital") {
+    sTitle.textContent = "Pencairan Saldo QRIS / Bank";
+    inNote.placeholder = "Cth: Penarikan QRIS ke rekening owner / setor ke laci kasir";
+    bannerText.textContent = "Transaksi ini akan memotong saldo QRIS atau transfer yang telah terkumpul di sistem.";
   }
 
   menuView?.classList.add("hidden");
@@ -81,13 +85,12 @@ export function renderFinanceDashboard() {
   const tbody = document.getElementById("financeLogsTableBody");
   const badgeLogs = document.getElementById("badgeTotalFinLogs");
 
-  const currentCash = state.financeDB?.cashBalance || 0;
-  const currentDigital = state.financeDB?.digitalBalance || 0;
+  const currentCash = Number(state.financeDB?.cashBalance) || 0;
+  const currentDigital = Number(state.financeDB?.digitalBalance) || 0;
 
   if (statCash) statCash.textContent = `Rp ${currentCash.toLocaleString("id-ID")}`;
   if (statDigital) statDigital.textContent = `Rp ${currentDigital.toLocaleString("id-ID")}`;
 
-  // Hitung total nilai modal fisik persediaan
   let totalAsset = 0;
   const products = state.productsDB || [];
   for (let i = 0; i < products.length; i++) {
@@ -138,10 +141,23 @@ async function handleSaveFinanceAction(e) {
     return;
   }
 
-  const isDeposit = subId === "finSubDepositCapital";
-  if (!isDeposit && (state.financeDB.cashBalance || 0) < amount) {
-    await showThemedAlert("Saldo Tidak Cukup", `Saldo kas fisik saat ini hanya Rp ${(state.financeDB.cashBalance || 0).toLocaleString("id-ID")}.`, "error");
-    return;
+  const currentCash = Number(state.financeDB.cashBalance) || 0;
+  const currentDigital = Number(state.financeDB.digitalBalance) || 0;
+
+  if (subId === "finSubSettleDigital") {
+    if (currentDigital < amount) {
+      await showThemedAlert("Saldo Digital Kurang", `Saldo QRIS atau transfer saat ini hanya Rp ${currentDigital.toLocaleString("id-ID")}.`, "error");
+      return;
+    }
+    state.financeDB.digitalBalance = Math.max(0, currentDigital - amount);
+  } else if (subId === "finSubDepositCapital") {
+    state.financeDB.cashBalance = currentCash + amount;
+  } else {
+    if (currentCash < amount) {
+      await showThemedAlert("Saldo Kas Kurang", `Saldo kas fisik saat ini hanya Rp ${currentCash.toLocaleString("id-ID")}.`, "error");
+      return;
+    }
+    state.financeDB.cashBalance = Math.max(0, currentCash - amount);
   }
 
   let actionName = "Mutasi Kas";
@@ -149,12 +165,7 @@ async function handleSaveFinanceAction(e) {
   else if (subId === "finSubWithdrawCapital") actionName = "Tarik Modal";
   else if (subId === "finSubOperationalExpense") actionName = "Biaya Operasional";
   else if (subId === "finSubDepositCapital") actionName = "Setor Modal";
-
-  if (isDeposit) {
-    state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + amount;
-  } else {
-    state.financeDB.cashBalance = Math.max(0, (state.financeDB.cashBalance || 0) - amount);
-  }
+  else if (subId === "finSubSettleDigital") actionName = "Pencairan QRIS";
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
