@@ -234,29 +234,28 @@ export function persistCategories() {
   });
 }
 
-// Menyimpan hanya barang yang mengalami perubahan untuk mencegah pemborosan kuota tulis Firestore
+// Menyimpan batch produk dengan pemecahan (chunking) per 400 dokumen agar aman dari limit Firestore (maksimal 500)
 export function persistProducts(specificProductOrList = null) {
   setLocalItem("kholif_pos_products", state.productsDB);
 
   if (specificProductOrList) {
     const items = Array.isArray(specificProductOrList) ? specificProductOrList : [specificProductOrList];
-    const batch = writeBatch(db);
-    let count = 0;
+    const validItems = items.filter((p) => p && p.id !== undefined && p.id !== null);
+    const CHUNK_SIZE = 400;
 
-    items.forEach((p) => {
-      if (p && p.id !== undefined && p.id !== null) {
+    for (let i = 0; i < validItems.length; i += CHUNK_SIZE) {
+      const chunk = validItems.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach((p) => {
         const ref = doc(db, "products_catalog", String(p.id));
         batch.set(ref, p, { merge: true });
-        count++;
-      }
-    });
-
-    if (count > 0) {
+      });
       batch.commit().catch((err) => {
         console.warn("Gagal menyimpan batch produk ke Firestore:", err);
       });
-      state.lastSyncTimestamp = Date.now();
     }
+
+    state.lastSyncTimestamp = Date.now();
   }
 }
 
