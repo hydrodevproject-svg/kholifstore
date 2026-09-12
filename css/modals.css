@@ -1,8 +1,8 @@
-/* ================= MODAL, POPUP, DIALOG & LAYAR LOGIN ================= */
+/* ================= MODAL, POPUP, DIALOG & LAYAR LOGIN MINIMALIS ================= */
 .login-overlay {
   position: fixed;
   inset: 0;
-  background: #f8fafc !important;
+  background: var(--bg-canvas);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,34 +33,33 @@
 }
 
 .login-logo-outside .brand-img-large {
-  height: 90px !important;
-  max-height: 90px !important;
-  width: auto !important;
-  max-width: 190px !important;
+  height: 85px;
+  max-height: 85px;
+  width: auto;
+  max-width: 180px;
   object-fit: contain;
-  filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.08));
 }
 
 .login-card {
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: 20px 16px;
   width: 100%;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-md);
 }
 
 .login-form-box {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 12px;
   text-align: left;
 }
 
 .input-field-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   width: 100%;
 }
 
@@ -90,17 +89,17 @@
   width: 100%;
   height: 38px;
   padding: 0 12px 0 34px;
-  border: 1.5px solid var(--border-light);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 12px;
-  background-color: #f8fafc !important;
+  background-color: var(--surface-subtle);
   color: var(--text-primary);
   outline: none;
   transition: all 0.15s ease;
 }
 
 .input-icon-wrap input:focus {
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   border-color: var(--brand-primary);
 }
 
@@ -121,21 +120,17 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  background-color: #f1f5f9;
+  background-color: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 6px 8px;
+  padding: 8px 10px;
   margin-top: 4px;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .field-info-banner span {
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--text-secondary);
-}
-
-.field-info-banner strong {
-  color: var(--text-primary);
 }
 
 .btn-toggle-password {
@@ -164,7 +159,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
@@ -226,8 +221,8 @@
 
 .btn-login-submit {
   height: 40px;
-  background: var(--brand-primary) !important;
-  color: #ffffff !important;
+  background: var(--brand-primary);
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   font-size: 12.5px;
@@ -250,8 +245,8 @@
 .modal-wrapper {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
   display: none;
   align-items: center;
   justify-content: center;
@@ -264,7 +259,7 @@
 }
 
 .modal-box {
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 460px;
@@ -275,7 +270,7 @@
 }
 
 @keyframes modal-pop {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -305,7 +300,7 @@
 .dialog-desc {
   font-size: 11.5px;
   color: var(--text-secondary);
-  line-height: 1.35;
+  line-height: 1.4;
   margin-bottom: 14px;
 }
 
@@ -316,12 +311,17 @@
 .dialog-input {
   width: 100%;
   height: 38px;
-  border: 1.5px solid var(--border-light);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 0 10px;
   font-size: 12px;
-  background: #f8fafc;
+  background: var(--surface-subtle);
   outline: none;
+}
+
+.dialog-input:focus {
+  background: var(--surface);
+  border-color: var(--brand-primary);
 }
 
 .dialog-action-buttons {
@@ -355,6 +355,9 @@
   color: var(--text-secondary);
   font-size: 20px;
   padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-form-vertical {
@@ -387,19 +390,24 @@
 .form-group input,
 .form-group select {
   width: 100%;
-  box-sizing: border-box;
   height: 38px;
   padding: 0 10px;
-  border: 1.5px solid var(--border-light);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 12px;
   outline: none;
-  background-color: #f8fafc !important;
+  background-color: var(--surface-subtle);
   color: var(--text-primary);
 }
 
+.form-group input:focus,
+.form-group select:focus {
+  background-color: var(--surface);
+  border-color: var(--brand-primary);
+}
+
 .input-readonly-hint {
-  background-color: #f1f5f9 !important;
+  background-color: var(--surface-hover) !important;
   color: var(--text-secondary) !important;
   cursor: not-allowed;
 }
@@ -407,17 +415,21 @@
 .discount-quick-pills {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
+  gap: 6px;
 }
 
 .btn-quick-disc {
-  height: 34px;
-  background: #f1f5f9;
+  height: 36px;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.btn-quick-disc:active {
+  background: var(--surface-hover);
 }
 
 .member-picker-list {
@@ -439,11 +451,15 @@
   cursor: pointer;
 }
 
+.member-picker-card:active {
+  background: var(--surface-hover);
+}
+
 /* ================= FULL-PAGE SCREENS ================= */
 .full-page-screen {
   position: fixed;
   inset: 0;
-  background-color: var(--bg-canvas) !important;
+  background-color: var(--bg-canvas);
   z-index: 3200;
   display: flex;
   flex-direction: column;
@@ -456,8 +472,8 @@
 }
 
 .page-screen-header {
-  height: 54px;
-  background-color: var(--surface) !important;
+  height: 52px;
+  background-color: var(--surface);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
@@ -492,25 +508,23 @@
   align-items: center;
   justify-content: space-between;
   height: 38px;
-  background-color: #f8fafc !important;
-  border: 1.5px solid var(--border-light);
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 0 12px;
   cursor: pointer;
 }
 
 .full-width-picker-list {
-  width: 100% !important;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
 .full-width-picker-list .cat-select-card {
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 12px 14px !important;
+  width: 100%;
+  padding: 12px 14px;
 }
 
 .category-options-list {
@@ -522,14 +536,18 @@
 }
 
 .cat-select-card {
-  background-color: var(--surface) !important;
-  border: 1px solid var(--border-light) !important;
+  background-color: var(--surface);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
+}
+
+.cat-select-card:active {
+  background: var(--surface-hover);
 }
 
 .cat-radio-circle {
@@ -588,7 +606,7 @@
   border: 1px solid #fee2e2;
   color: var(--brand-danger);
   border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  padding: 4px 8px;
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
@@ -597,7 +615,7 @@
 .add-category-box {
   max-width: 460px;
   margin: 0 auto;
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -606,12 +624,13 @@
 .inline-add-cat-row {
   display: flex;
   gap: 6px;
+  margin-top: 6px;
 }
 
 .inline-add-cat-row input {
   flex: 1;
   height: 38px;
-  background-color: #f8fafc !important;
+  background-color: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 0 10px;
@@ -619,19 +638,20 @@
 }
 
 .inline-add-cat-row button {
-  padding: 0 12px;
+  padding: 0 14px;
   height: 38px;
-  background-color: var(--brand-primary) !important;
-  color: #ffffff !important;
+  background-color: var(--brand-primary);
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   font-size: 11.5px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 /* ================= EDIT TRANSAKSI ================= */
 .trx-items-card-list {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 10px;
@@ -655,14 +675,14 @@
 .total-big-wrap {
   text-align: center;
   margin-bottom: 12px;
-  background: #f8fafc;
-  padding: 12px;
-  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  padding: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
 }
 
 .total-big-wrap small {
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--text-secondary);
 }
 
@@ -686,13 +706,13 @@
 
 .pay-input-group input {
   width: 100%;
-  height: 42px;
-  border: 2px solid var(--border-light);
+  height: 44px;
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 16px;
   font-weight: 800;
   text-align: center;
-  background: #f8fafc;
+  background: var(--surface-subtle);
   outline: none;
 }
 
@@ -705,8 +725,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background: #f8fafc;
+  padding: 12px;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
@@ -719,7 +739,7 @@
   color: var(--text-primary);
 }
 
-/* Animasi & Header Sukses */
+/* ================= ANIMASI NOTA SUKSES ================= */
 .success-header-anim {
   text-align: center;
   padding: 6px 0 12px;
@@ -780,7 +800,7 @@
 }
 
 .receipt-card-preview {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px dashed var(--border-light);
   border-radius: var(--radius-sm);
   padding: 12px;
@@ -804,7 +824,7 @@
 
 .receipt-divider {
   height: 1px;
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--border-light);
   margin: 3px 0;
 }
 
@@ -853,8 +873,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background-color: #f8fafc !important;
-  border: 1px solid var(--border-light) !important;
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
 }
 
@@ -873,7 +893,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
   gap: 6px;
-  background-color: #f8fafc !important;
+  background-color: var(--surface-subtle);
   padding: 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
@@ -881,48 +901,22 @@
 
 .user-grid-form input,
 .user-grid-form select {
-  height: 34px;
+  height: 36px;
   padding: 0 8px;
   border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 11.5px;
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   color: var(--text-primary);
 }
 
 .user-grid-form button {
-  background-color: var(--brand-primary) !important;
-  color: #ffffff !important;
+  background-color: var(--brand-primary);
+  color: #ffffff;
   border: none;
   border-radius: 4px;
   font-weight: 700;
   padding: 0 12px;
-  cursor: pointer;
-}
-
-.it-form-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.it-form-row input {
-  flex: 1;
-  height: 34px;
-  padding: 0 8px;
-  border: 1px solid var(--border-light);
-  border-radius: 4px;
-  font-size: 11.5px;
-  background-color: var(--surface) !important;
-}
-
-.it-form-row button {
-  background-color: var(--brand-primary) !important;
-  color: #ffffff !important;
-  border: none;
-  padding: 0 12px;
-  border-radius: 4px;
-  font-weight: 700;
   cursor: pointer;
 }
 
@@ -934,10 +928,10 @@
 }
 
 .feature-module-card {
-  background-color: var(--surface) !important;
-  border: 1px solid var(--border-light) !important;
+  background-color: var(--surface);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -967,8 +961,8 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  background-color: #f8fafc !important;
-  padding: 6px 8px;
+  background-color: var(--surface-subtle);
+  padding: 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
 }
@@ -1015,7 +1009,7 @@
 }
 
 .database-card-action {
-  background-color: #f8fafc !important;
+  background-color: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 12px 14px;
@@ -1026,7 +1020,7 @@
 }
 
 .database-card-action.danger-zone {
-  background-color: #fef2f2 !important;
+  background-color: #fef2f2;
   border-color: #fecaca;
 }
 
@@ -1041,13 +1035,13 @@
 .db-action-info span {
   font-size: 10.5px;
   color: var(--text-secondary);
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .btn-danger-action {
   height: 38px;
-  background-color: var(--brand-danger) !important;
-  color: #ffffff !important;
+  background-color: var(--brand-danger);
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   font-size: 11.5px;
@@ -1063,8 +1057,8 @@
 .exit-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
   display: none;
   align-items: center;
   justify-content: center;
@@ -1083,6 +1077,8 @@
   max-width: 300px;
   width: 100%;
   text-align: center;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg);
 }
 
 .exit-dialog-card h3 {
@@ -1113,7 +1109,8 @@
 }
 
 .btn-exit-cancel {
-  background: #f1f5f9;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
   color: var(--text-primary);
 }
 
@@ -1130,7 +1127,7 @@
   background: var(--brand-primary);
   color: #ffffff;
   padding: 6px 14px;
-  border-radius: 18px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -1140,7 +1137,7 @@
   opacity: 0;
   transition: all 0.25s var(--spring);
   pointer-events: none;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .scan-toast.show {
@@ -1150,25 +1147,25 @@
 
 /* ================= HIERARKI LAPISAN Z-INDEX SCREEN ================= */
 #categoryPageScreen {
-  z-index: 3300 !important;
+  z-index: 3300;
 }
 
 #purchProductPickerScreen {
-  z-index: 3350 !important;
+  z-index: 3350;
 }
 
 #purchItemDetailModal {
-  z-index: 3600 !important;
+  z-index: 3600;
 }
 
 #paperWidthModal {
-  z-index: 3600 !important;
+  z-index: 3600;
 }
 
 #posMemberPickerScreen {
-  z-index: 3300 !important;
+  z-index: 3300;
 }
 
 #payPageScreen {
-  z-index: 3400 !important;
+  z-index: 3400;
 }
