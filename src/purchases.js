@@ -24,18 +24,17 @@ export function initPurchasesModule() {
     purchTbody.addEventListener("click", (e) => {
       const btn = e.target.closest(".btn-edit-purch");
       if (!btn) return;
-      const purch = state.purchasesDB.find((x) => x.id === btn.getAttribute("data-id"));
+      const purch = state.purchasesDB.find((x) => String(x.id) === String(btn.getAttribute("data-id")));
       if (purch) openEditPurchaseModal(purch);
     });
   }
 
-  // Pelunasan Hutang Supplier: Memperbarui seluruh item yang memiliki no faktur sama
   const debtTbody = document.getElementById("supplierDebtTableBody");
   if (debtTbody) {
     debtTbody.addEventListener("click", async (e) => {
       const btn = e.target.closest(".btn-pay-supplier-debt");
       if (!btn) return;
-      const debt = state.supplierDebtsDB.find((x) => x.id === btn.getAttribute("data-id"));
+      const debt = state.supplierDebtsDB.find((x) => String(x.id) === String(btn.getAttribute("data-id")));
       if (!debt) return;
 
       const inputVal = await showThemedPrompt(
@@ -45,7 +44,7 @@ export function initPurchasesModule() {
       );
       const paid = parseInt(inputVal, 10);
       if (paid > 0) {
-        debt.remainingDebt = Math.max(0, debt.remainingDebt - paid);
+        debt.remainingDebt = Math.max(0, (Number(debt.remainingDebt) || 0) - paid);
         if (debt.remainingDebt === 0) {
           state.purchasesDB.forEach((p) => {
             if (p.nota === debt.nota) p.paidStatus = "Lunas";
@@ -77,8 +76,8 @@ export function initPurchasesModule() {
     pickerOptionsList.addEventListener("click", (e) => {
       const card = e.target.closest(".cat-select-card");
       if (!card) return;
-      const pId = Number(card.getAttribute("data-product-id"));
-      const prod = state.productsDB.find((p) => p && p.id === pId);
+      const pId = card.getAttribute("data-product-id");
+      const prod = state.productsDB.find((p) => p && String(p.id) === String(pId));
       if (prod) {
         selectPurchProductFromScanner(prod);
       }
@@ -98,7 +97,7 @@ export function selectPurchProductFromScanner(prod) {
 
 export function refreshProductPriceFromBatches(prod) {
   if (!prod.batches || prod.batches.length === 0) return;
-  const activeBatch = prod.batches.find((b) => b.qty > 0);
+  const activeBatch = prod.batches.find((b) => (Number(b.qty) || 0) > 0);
   if (activeBatch) {
     prod.costPrice = activeBatch.buyPrice;
     prod.price = activeBatch.sellPrice;
@@ -230,9 +229,10 @@ function initAddPurchaseEvents() {
       }
 
       let grandTotalPurch = 0;
+      const modifiedProducts = [];
 
       tempPurchaseItems.forEach((it, idx) => {
-        const prod = state.productsDB.find((p) => p.id === it.productId);
+        const prod = state.productsDB.find((p) => String(p.id) === String(it.productId));
         if (prod) {
           if (!prod.batches) prod.batches = [];
           prod.batches.push({
@@ -244,8 +244,9 @@ function initAddPurchaseEvents() {
             qty: it.qty,
             expireDate: it.expireDate
           });
-          prod.stock += it.qty;
+          prod.stock = (Number(prod.stock) || 0) + it.qty;
           refreshProductPriceFromBatches(prod);
+          modifiedProducts.push(prod);
         }
 
         const itemTotal = it.qty * it.costPrice;
@@ -268,7 +269,7 @@ function initAddPurchaseEvents() {
         });
       });
 
-      persistProducts();
+      persistProducts(modifiedProducts);
       persistPurchases();
 
       if (method === "Hutang") {
@@ -376,7 +377,7 @@ function renderPurchProductOptions(q = "") {
   const filtered = state.productsDB.filter((p) => {
     if (!p) return false;
     const name = (p.name || "").toLowerCase();
-    const barcode = (p.barcode || "").toLowerCase();
+    const barcode = String(p.barcode || "").toLowerCase();
     const cat = (p.cat || "").toLowerCase();
     return !q || name.includes(q) || barcode.includes(q) || cat.includes(q);
   });
@@ -514,7 +515,7 @@ function initEditPurchaseEvents() {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const purchId = document.getElementById("editPurchId").value;
-      const prodId = Number(document.getElementById("editPurchProductId").value);
+      const prodId = document.getElementById("editPurchProductId").value;
       const oldQty = parseInt(document.getElementById("editPurchOldQty").value, 10);
       const newQty = parseInt(document.getElementById("editPurchQty").value, 10);
       const costPrice = parseInt(document.getElementById("editPurchCostPrice").value, 10);
@@ -523,32 +524,33 @@ function initEditPurchaseEvents() {
       const paymentMethod = methodSelect.value;
       const dueDate = paymentMethod === "Hutang" ? document.getElementById("editPurchDueDate").value : "-";
 
-      const purch = state.purchasesDB.find((p) => p.id === purchId);
-      const prod = state.productsDB.find((p) => p.id === prodId);
+      const purch = state.purchasesDB.find((p) => String(p.id) === String(purchId));
+      const prod = state.productsDB.find((p) => String(p.id) === String(prodId));
 
       if (!purch || !prod) return;
 
       const diffQty = newQty - oldQty;
-      prod.stock += diffQty;
-
       const oldNota = purch.nota;
       const newNota = document.getElementById("editPurchNota").value.trim();
       const supplierName = document.getElementById("editPurchSupplier").value.trim();
 
-      if (prod.batches) {
+      if (Array.isArray(prod.batches)) {
         const batch = prod.batches.find((b) => b.nota === oldNota);
         if (batch) {
           batch.nota = newNota;
           batch.supplier = supplierName;
-          batch.qty = Math.max(0, batch.qty + diffQty);
+          batch.qty = Math.max(0, (Number(batch.qty) || 0) + diffQty);
           batch.buyPrice = costPrice;
           batch.sellPrice = sellPrice;
           batch.expireDate = expireDate;
         }
+        prod.stock = prod.batches.reduce((sum, b) => sum + (Number(b.qty) || 0), 0);
+      } else {
+        prod.stock = Math.max(0, (Number(prod.stock) || 0) + diffQty);
       }
 
       refreshProductPriceFromBatches(prod);
-      persistProducts();
+      persistProducts(prod);
 
       purch.nota = newNota;
       purch.supplier = supplierName;
@@ -562,7 +564,6 @@ function initEditPurchaseEvents() {
       purch.paidStatus = paymentMethod === "Hutang" ? "Belum Lunas" : "Lunas";
       persistPurchases();
 
-      // Rekalkulasi total hutang seluruh item pada faktur ini
       const invoiceTotal = state.purchasesDB
         .filter((p) => p.nota === newNota)
         .reduce((sum, item) => sum + Number(item.total || 0), 0);
