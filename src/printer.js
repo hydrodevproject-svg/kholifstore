@@ -1,7 +1,7 @@
 // src/printer.js
 import { state, persistPrinterConfig } from "./state.js";
 import { showScanToast } from "./utils.js";
-import { showThemedAlert, reinforceHistoryBarrier } from "./ui.js";
+import { showThemedAlert, showThemedConfirm, reinforceHistoryBarrier } from "./ui.js";
 
 let bleDevice = null;
 let bleCharacteristic = null;
@@ -12,12 +12,12 @@ export function applyPrinterWidth(width) {
   persistPrinterConfig();
 }
 
-// Koneksi Web Bluetooth ESC/POS
+// Koneksi Web Bluetooth ESC/POS Langsung
 export async function connectBluetoothPrinter() {
   if (!navigator.bluetooth) {
     await showThemedAlert(
       "Bluetooth Tidak Didukung",
-      "Peramban ini tidak mendukung Web Bluetooth. Pastikan Anda menggunakan Google Chrome di Android.",
+      "Peramban ini tidak mendukung Web Bluetooth. Pastikan Anda membuka aplikasi melalui Google Chrome di Android.",
       "error"
     );
     return false;
@@ -117,18 +117,19 @@ async function sendRawBluetooth(dataBuffer) {
 }
 
 export async function printThermalReceipt(trx) {
+  // 1. Eksekusi cetak langsung jika printer Bluetooth aktif
   if (bleCharacteristic && bleDevice && bleDevice.gatt.connected) {
     try {
-      showScanToast("Mencetak nota via Bluetooth...");
+      showScanToast("Mencetak nota...");
       const maxCol = state.printerConfig.paperWidth === "80mm" ? 48 : 32;
       const encoder = new TextEncoder();
       let stream = "";
 
-      stream += "\x1B\x40"; // ESC @ Reset
+      stream += "\x1B\x40"; // ESC @ Reset printer
       stream += "\x1B\x61\x01"; // Rata tengah
-      stream += "\x1B\x45\x01"; // Tebal ON
+      stream += "\x1B\x45\x01"; // Bold ON
       stream += "KHOLIF STORE\n";
-      stream += "\x1B\x45\x00"; // Tebal OFF
+      stream += "\x1B\x45\x00"; // Bold OFF
       stream += "Suralaga, Lombok Timur\n";
       stream += "WA: 087861444070\n";
       stream += "-".repeat(maxCol) + "\n";
@@ -143,36 +144,49 @@ export async function printThermalReceipt(trx) {
       if (trx.items && trx.items.length > 0) {
         trx.items.forEach((item) => {
           const leftText = `${item.name} x${item.qty}`;
-          const rightText = `Rp ${item.subtotal.toLocaleString("id-ID")}`;
+          const rightText = `Rp ${Number(item.subtotal || 0).toLocaleString("id-ID")}`;
           stream += formatRow(leftText, rightText, maxCol);
         });
       }
       stream += "-".repeat(maxCol) + "\n";
 
       if (trx.discount > 0) {
-        stream += formatRow("Diskon Tunai:", `- Rp ${trx.discount.toLocaleString("id-ID")}`, maxCol);
+        stream += formatRow("Diskon Tunai:", `- Rp ${Number(trx.discount).toLocaleString("id-ID")}`, maxCol);
       }
-      stream += formatRow("TOTAL TAGIHAN:", `Rp ${trx.total.toLocaleString("id-ID")}`, maxCol);
+      stream += formatRow("TOTAL TAGIHAN:", `Rp ${Number(trx.total || 0).toLocaleString("id-ID")}`, maxCol);
       stream += formatRow("Metode:", trx.paymentMethod || "Tunai", maxCol);
       stream += "-".repeat(maxCol) + "\n";
 
       stream += "\x1B\x61\x01"; // Rata tengah
       stream += "Terima kasih telah berbelanja\ndi Kholif Store!\n\n\n\n";
-      stream += "\x1D\x56\x01"; // GS V 1 Potong / Feed
+      stream += "\x1D\x56\x01"; // GS V 1 Paper cut / feed
 
       await sendRawBluetooth(encoder.encode(stream));
       showScanToast("Nota berhasil dicetak");
       return;
     } catch (err) {
-      console.error("Gagal cetak Bluetooth:", err);
-      showScanToast("Bluetooth gagal, membuka dialog cetak sistem...");
+      console.error("Gagal mencetak ke printer Bluetooth:", err);
+      showScanToast("Koneksi printer terputus");
     }
   }
 
-  // Fallback otomatis ke dialog printer bawaan OS / browser jika Bluetooth tidak terhubung
-  printAdvanceSystemDialog(trx);
+  // 2. Jika belum tersambung, tawarkan sambung Bluetooth langsung tanpa membuka dialog Android
+  const connectNow = await showThemedConfirm(
+    "Printer Belum Terhubung",
+    "Printer Bluetooth kasir belum tersambung. Sambungkan perangkat printer thermal sekarang agar nota langsung tercetak?",
+    "Sambungkan",
+    "Batal"
+  );
+
+  if (connectNow) {
+    const success = await connectBluetoothPrinter();
+    if (success) {
+      await printThermalReceipt(trx);
+    }
+  }
 }
 
+// Hanya dipanggil jika pengguna memilih opsi Advance di pengaturan
 export function printAdvanceSystemDialog(trx) {
   const wrapper = document.getElementById("printableReceiptWrapper");
   const area = document.getElementById("printableReceiptArea");
@@ -242,16 +256,16 @@ export function generateWhatsAppText(trx) {
   text += `--------------------------------\n`;
   if (trx.items && trx.items.length > 0) {
     trx.items.forEach((item) => {
-      text += `• ${item.name} (${item.qty}x) = Rp ${item.subtotal.toLocaleString("id-ID")}\n`;
+      text += `• ${item.name} (${item.qty}x) = Rp ${Number(item.subtotal || 0).toLocaleString("id-ID")}\n`;
     });
   } else {
-    text += `Total Pembelian: Rp ${trx.total.toLocaleString("id-ID")}\n`;
+    text += `Total Pembelian: Rp ${Number(trx.total || 0).toLocaleString("id-ID")}\n`;
   }
   text += `--------------------------------\n`;
   if (trx.discount > 0) {
-    text += `Diskon Tunai : - Rp ${trx.discount.toLocaleString("id-ID")}\n`;
+    text += `Diskon Tunai : - Rp ${Number(trx.discount).toLocaleString("id-ID")}\n`;
   }
-  text += `*TOTAL TAGIHAN: Rp ${trx.total.toLocaleString("id-ID")}*\n`;
+  text += `*TOTAL TAGIHAN: Rp ${Number(trx.total || 0).toLocaleString("id-ID")}*\n`;
   text += `Metode    : ${trx.paymentMethod || "Tunai"} ${trx.paymentMethod === "Piutang / Kasbon" ? "(Tempo)" : ""}\n`;
   text += `--------------------------------\n`;
   text += `_Terima kasih telah berbelanja di Kholif Store!_\n`;
@@ -343,11 +357,11 @@ export function initPrinterSettings() {
       const testTrx = {
         id: "TRX-TEST",
         time: `${now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`,
-        cashier: state.currentUser ? state.currentUser.name : "Master IT",
+        cashier: state.currentUser ? state.currentUser.name : "Kasir",
         total: 25000,
         discount: 1000,
         paymentMethod: "Tunai",
-        items: [{ name: "Uji Coba Struk Kholif Store", qty: 1, subtotal: 26000 }]
+        items: [{ name: "Uji Coba Struk Thermal", qty: 1, subtotal: 26000 }]
       };
       printThermalReceipt(testTrx);
     };
@@ -360,7 +374,7 @@ export function initPrinterSettings() {
       const testTrx = {
         id: "TRX-ADVANCE",
         time: `${now.toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`,
-        cashier: state.currentUser ? state.currentUser.name : "Master IT",
+        cashier: state.currentUser ? state.currentUser.name : "Kasir",
         total: 25000,
         discount: 0,
         paymentMethod: "Tunai",
