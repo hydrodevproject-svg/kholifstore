@@ -112,11 +112,54 @@ export function initReportsModule() {
 
       const oldStatus = trx.status || "Sukses";
       const newStatus = document.getElementById("editTrxStatus").value;
+      const oldTotal = Number(trx.total) || 0;
+      const newTotal = parseInt(document.getElementById("editTrxTotal").value, 10) || 0;
+      const diffTotal = newTotal - oldTotal;
 
       trx.time = document.getElementById("editTrxTime").value.trim();
       trx.cashier = document.getElementById("editTrxCashier").value.trim();
-      trx.total = parseInt(document.getElementById("editTrxTotal").value, 10) || 0;
+      trx.total = newTotal;
       trx.status = newStatus;
+
+      // Sinkronisasi kas jika status tetap sukses tetapi nominal total belanja disesuaikan
+      if (oldStatus === "Sukses" && newStatus === "Sukses" && diffTotal !== 0) {
+        if (!state.financeDB) state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+        const now = new Date();
+        const timeStr = `${now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+        if (trx.paymentMethod === "Tunai") {
+          state.financeDB.cashBalance = Math.max(0, (Number(state.financeDB.cashBalance) || 0) + diffTotal);
+          state.financeDB.logs.unshift({
+            id: `FIN-ADJ-${Date.now()}`,
+            time: timeStr,
+            type: "Koreksi Penjualan (Tunai)",
+            amount: Math.abs(diffTotal),
+            note: `Penyesuaian nota ${trx.id} (${diffTotal > 0 ? '+' : '-'}Rp ${Math.abs(diffTotal).toLocaleString("id-ID")})`,
+            admin: state.currentUser ? state.currentUser.name : "Admin"
+          });
+          persistFinance();
+          renderFinanceDashboard();
+        } else if (trx.paymentMethod === "Transfer / QRIS") {
+          state.financeDB.digitalBalance = Math.max(0, (Number(state.financeDB.digitalBalance) || 0) + diffTotal);
+          state.financeDB.logs.unshift({
+            id: `FIN-ADJ-${Date.now()}`,
+            time: timeStr,
+            type: "Koreksi Penjualan (QRIS)",
+            amount: Math.abs(diffTotal),
+            note: `Penyesuaian nota ${trx.id} (${diffTotal > 0 ? '+' : '-'}Rp ${Math.abs(diffTotal).toLocaleString("id-ID")})`,
+            admin: state.currentUser ? state.currentUser.name : "Admin"
+          });
+          persistFinance();
+          renderFinanceDashboard();
+        } else if (trx.paymentMethod === "Piutang / Kasbon" && trx.member?.id) {
+          const mbr = state.membersDB.find((m) => String(m.id) === String(trx.member.id));
+          if (mbr) {
+            mbr.debt = Math.max(0, (Number(mbr.debt) || 0) + diffTotal);
+            persistMembers();
+            renderAllMemberData();
+          }
+        }
+      }
 
       if (oldStatus !== "Dibatalkan" && newStatus === "Dibatalkan") {
         restoreTransactionStock(trx);
@@ -348,7 +391,6 @@ export function renderReports() {
     }
   });
 
-  // Perhitungan laba kotor riil tanpa manipulasi batas minimum Rp 0
   const grossProfit = totalRev - totalHppSold;
 
   const totalOperationalExpense = (state.financeDB?.logs || [])
