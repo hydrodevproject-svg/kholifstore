@@ -161,7 +161,6 @@ export function switchView(viewId) {
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "none";
 
-    // Pulihkan tombol apung jika di mode ponsel
     if (!isTabletOrDesktop && fab) {
       fab.classList.remove("hidden");
       fab.style.display = "flex";
@@ -171,7 +170,6 @@ export function switchView(viewId) {
     const hTitle = document.getElementById("headerCurrentTitle");
     if (hTitle) hTitle.style.display = "block";
 
-    // Sembunyikan tombol apung di luar menu POS
     if (fab) {
       fab.classList.add("hidden");
       fab.style.display = "none";
@@ -235,13 +233,11 @@ function initSessionAndLogin() {
         return;
       }
 
-      // Otomatis migrasikan password lama plain-text ke hash SHA-256
       if (acc.password === p) {
         acc.password = hashedInput;
         persistAccounts();
       }
 
-      // Amankan sesi: buang field password sebelum disimpan ke storage lokal
       const { password, ...safeUser } = acc;
       state.currentUser = { ...safeUser };
       saveUserSession(state.currentUser);
@@ -454,7 +450,7 @@ function initSettingsModule() {
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       });
 
-      const totalRev = monthSales.reduce((acc, t) => acc + (t.total || 0), 0);
+      const totalRev = monthSales.reduce((acc, t) => acc + (Number(t.total) || 0), 0);
       let totalHpp = 0;
       monthSales.forEach((trx) => {
         if (Array.isArray(trx.items)) {
@@ -465,13 +461,15 @@ function initSettingsModule() {
             } else if (item.costPrice !== undefined) {
               totalHpp += Number(item.costPrice) * qty;
             } else {
-              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === String(item.name || "").trim().toLowerCase());
               totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * qty;
             }
           });
         }
       });
-      const grossProfit = Math.max(0, totalRev - totalHpp);
+
+      // Laba kotor riil tanpa limitasi 0
+      const grossProfit = totalRev - totalHpp;
 
       const totalOpex = (state.financeDB?.logs || [])
         .filter((l) => l.type === "Biaya Operasional")
@@ -479,9 +477,12 @@ function initSettingsModule() {
 
       const netProfit = grossProfit - totalOpex;
 
+      const grossText = `${grossProfit < 0 ? '-' : ''}Rp ${Math.abs(grossProfit).toLocaleString("id-ID")}`;
+      const netText = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
+
       const confirm = await showThemedConfirm(
         "Tutup Buku Bulanan",
-        `Periode: ${monthName}\n\n• Omzet Penjualan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor: Rp ${grossProfit.toLocaleString("id-ID")}\n• Biaya Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Estimasi Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")}\n\nLakukan pembukuan tutup buku periode ini?`,
+        `Periode: ${monthName}\n\n• Omzet Penjualan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor: ${grossText}\n• Biaya Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Estimasi Laba Bersih: ${netText}\n\nLakukan pembukuan tutup buku periode ini?`,
         "Proses Tutup Buku",
         "Batal"
       );
@@ -496,7 +497,7 @@ function initSettingsModule() {
         time: fullDateTimeStr,
         type: "Tutup Buku Bulanan",
         amount: netProfit,
-        note: `Tutup Buku ${monthName} (Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")})`,
+        note: `Tutup Buku ${monthName} (Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: ${netText})`,
         admin: state.currentUser ? state.currentUser.name : "Admin"
       });
 
@@ -519,7 +520,7 @@ function initSettingsModule() {
         return d.getFullYear() === currentYear;
       });
 
-      const totalRev = yearSales.reduce((acc, t) => acc + (t.total || 0), 0);
+      const totalRev = yearSales.reduce((acc, t) => acc + (Number(t.total) || 0), 0);
       let totalHpp = 0;
       yearSales.forEach((trx) => {
         if (Array.isArray(trx.items)) {
@@ -530,13 +531,14 @@ function initSettingsModule() {
             } else if (item.costPrice !== undefined) {
               totalHpp += Number(item.costPrice) * qty;
             } else {
-              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+              const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === String(item.name || "").trim().toLowerCase());
               totalHpp += (prod ? Number(prod.costPrice || 0) : 0) * qty;
             }
           });
         }
       });
-      const grossProfit = Math.max(0, totalRev - totalHpp);
+
+      const grossProfit = totalRev - totalHpp;
 
       const totalOpex = (state.financeDB?.logs || [])
         .filter((l) => l.type === "Biaya Operasional")
@@ -544,9 +546,12 @@ function initSettingsModule() {
 
       const netProfit = grossProfit - totalOpex;
 
+      const grossText = `${grossProfit < 0 ? '-' : ''}Rp ${Math.abs(grossProfit).toLocaleString("id-ID")}`;
+      const netText = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
+
       const confirm = await showThemedConfirm(
         "Tutup Buku Tahunan",
-        `Tahun Buku: ${currentYear}\n\n• Total Omzet Tahunan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor Tahunan: Rp ${grossProfit.toLocaleString("id-ID")}\n• Beban Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Akumulasi Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")}\n\nLakukan tutup buku tahunan untuk membukukan laporan akhir tahun?`,
+        `Tahun Buku: ${currentYear}\n\n• Total Omzet Tahunan: Rp ${totalRev.toLocaleString("id-ID")}\n• Total HPP Modal: Rp ${totalHpp.toLocaleString("id-ID")}\n• Laba Kotor Tahunan: ${grossText}\n• Beban Operasional: Rp ${totalOpex.toLocaleString("id-ID")}\n• Akumulasi Laba Bersih: ${netText}\n\nLakukan tutup buku tahunan untuk membukukan laporan akhir tahun?`,
         "Tutup Buku Tahunan",
         "Batal"
       );
@@ -561,7 +566,7 @@ function initSettingsModule() {
         time: fullDateTimeStr,
         type: "Tutup Buku Tahunan",
         amount: netProfit,
-        note: `Tutup Buku Tahun ${currentYear} (Total Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: Rp ${netProfit.toLocaleString("id-ID")})`,
+        note: `Tutup Buku Tahun ${currentYear} (Total Omzet: Rp ${totalRev.toLocaleString("id-ID")}, Laba Bersih: ${netText})`,
         admin: state.currentUser ? state.currentUser.name : "Admin"
       });
 
@@ -699,6 +704,7 @@ async function handleImportInventoryFile(file) {
     let addedCount = 0;
     let updatedCount = 0;
     let newCategoriesAdded = false;
+    const modifiedProducts = [];
 
     rawItems.forEach((row, i) => {
       const item = normalizeProductRow(row);
@@ -730,10 +736,11 @@ async function handleImportInventoryFile(file) {
           qty: item.stock,
           expireDate: ""
         }] : [];
+        modifiedProducts.push(existing);
         updatedCount++;
       } else {
         const newId = Date.now() + i;
-        state.productsDB.unshift({
+        const newProd = {
           id: newId,
           barcode: item.barcode,
           name: item.name,
@@ -749,7 +756,9 @@ async function handleImportInventoryFile(file) {
             qty: item.stock,
             expireDate: ""
           }] : []
-        });
+        };
+        state.productsDB.unshift(newProd);
+        modifiedProducts.push(newProd);
         addedCount++;
       }
     });
@@ -760,7 +769,7 @@ async function handleImportInventoryFile(file) {
     }
 
     if (newCategoriesAdded) persistCategories();
-    persistProducts();
+    persistProducts(modifiedProducts);
     renderProducts();
     renderAllInventoryData();
     renderFinanceDashboard();
@@ -1323,7 +1332,7 @@ function getConsoleCollection(tableName) {
 function saveConsoleCollection(tableName) {
   switch (tableName) {
     case "products":
-      persistProducts();
+      persistProducts(state.productsDB);
       renderProducts();
       renderAllInventoryData();
       renderFinanceDashboard();
@@ -1452,7 +1461,7 @@ async function handleSaveConsoleEntry(e) {
     if (tableName === "categories") {
       const catName = parsed.name || parsed;
       if (!catName || typeof catName !== "string") {
-        throw new Error("Kategori harus memiliki atribut nama berupa string.");
+        throw new Error("Kategori harus berupa teks.");
       }
       if (entryId && entryId !== "") {
         const idx = dataset.indexOf(entryId);
@@ -1479,7 +1488,7 @@ async function handleSaveConsoleEntry(e) {
     debouncedUpdateMetrics();
     showScanToast("Perubahan data Console berhasil disimpan");
   } catch (err) {
-    await showThemedAlert("Format JSON Salah", "Format teks JSON tidak valid. Periksa kembali tanda kurung dan koma:\n" + err.message, "error");
+    await showThemedAlert("Format JSON Salah", "Format teks JSON tidak valid:\n" + err.message, "error");
   }
 }
 
@@ -1530,8 +1539,8 @@ function initHardwareScanner() {
     searchEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        e.stopPropagation(); // Mencegah propagasi ke window listener
-        barcodeBuffer = ""; // Kosongkan buffer agar tidak tereksekusi dua kali
+        e.stopPropagation();
+        barcodeBuffer = "";
         const val = searchEl.value.trim();
         if (val) processScannedBarcode(val);
         searchEl.value = "";
@@ -1551,14 +1560,13 @@ function initHardwareScanner() {
 async function processScannedBarcode(code) {
   if (!code) return;
 
-  // Throttle scanner hardware: cegah bounce scan ganda dalam 250ms
   if (isProcessingBarcode) return;
   isProcessingBarcode = true;
   setTimeout(() => {
     isProcessingBarcode = false;
   }, 250);
 
-  // 1. Layar Form Tambah / Edit Barang Baru
+  // 1. Form Tambah / Edit Barang
   const prodPage = document.getElementById("productPageScreen");
   const prodBarcodeInp = document.getElementById("prodFormBarcode");
   if (prodPage && prodPage.classList.contains("active") && prodBarcodeInp) {
@@ -1568,10 +1576,11 @@ async function processScannedBarcode(code) {
     return;
   }
 
-  // 2. Layar Pemilih Barang Faktur Pembelian Supplier
+  // 2. Pemilih Barang Faktur Pembelian Supplier
   const purchPicker = document.getElementById("purchProductPickerScreen");
   if (purchPicker && purchPicker.classList.contains("active")) {
-    const prod = state.productsDB.find((p) => p && (String(p.barcode) === code || String(p.id) === code));
+    const prod = state.productsDB.find((p) => p && String(p.barcode || "").trim() === code) ||
+                 state.productsDB.find((p) => p && String(p.id) === code);
     if (prod) {
       playScannerBeep(true);
       showScanToast(`Dipilih: ${prod.name}`);
@@ -1583,10 +1592,11 @@ async function processScannedBarcode(code) {
     return;
   }
 
-  // 3. Layar Pemilih Barang Audit Stok Opname
+  // 3. Pemilih Barang Stok Opname
   const opnamePicker = document.getElementById("opnameProductPickerScreen");
   if (opnamePicker && opnamePicker.classList.contains("active")) {
-    const prod = state.productsDB.find((p) => p && (String(p.barcode) === code || String(p.id) === code));
+    const prod = state.productsDB.find((p) => p && String(p.barcode || "").trim() === code) ||
+                 state.productsDB.find((p) => p && String(p.id) === code);
     if (prod) {
       playScannerBeep(true);
       document.getElementById("opnameSelectedProductId").value = prod.id;
@@ -1602,10 +1612,10 @@ async function processScannedBarcode(code) {
     return;
   }
 
-  // 4. Layar Pemilih Member di Meja Kasir
+  // 4. Pemilih Member di POS
   const memberPicker = document.getElementById("posMemberPickerScreen");
   if (memberPicker && memberPicker.classList.contains("active")) {
-    const matchedMember = state.membersDB.find((m) => m.phone === code || m.id === code);
+    const matchedMember = state.membersDB.find((m) => m && (String(m.phone || "").trim() === code || String(m.id || "").trim() === code));
     if (matchedMember) {
       attachMember(matchedMember);
       playScannerBeep(true);
@@ -1617,15 +1627,16 @@ async function processScannedBarcode(code) {
     return;
   }
 
-  // 5. Layar Utama POS (Meja Kasir)
-  const matchedMember = state.membersDB.find((m) => m.phone === code || m.id === code);
+  // 5. Layar Kasir Utama (Cek Member lalu Produk)
+  const matchedMember = state.membersDB.find((m) => m && (String(m.phone || "").trim() === code || String(m.id || "").trim() === code));
   if (matchedMember) {
     attachMember(matchedMember);
     playScannerBeep(true);
     return;
   }
 
-  const prod = state.productsDB.find((p) => String(p.barcode) === code || String(p.id) === code);
+  const prod = state.productsDB.find((p) => p && String(p.barcode || "").trim() === code) ||
+               state.productsDB.find((p) => p && String(p.id) === code);
   if (prod) {
     const ok = await addToCart(prod, true);
     if (ok) {
