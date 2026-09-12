@@ -1,8 +1,15 @@
 // src/purchases.js
-import { state, persistPurchases, persistSupplierDebts, persistProducts } from "./state.js";
-import { showThemedAlert, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
+import { 
+  state, 
+  persistPurchases, 
+  persistSupplierDebts, 
+  persistProducts,
+  persistFinance 
+} from "./state.js";
+import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce } from "./utils.js";
 import { renderAllInventoryData } from "./inventory.js";
+import { renderFinanceDashboard } from "./finance.js";
 
 let tempPurchaseItems = [];
 let activeSelectedProduct = null;
@@ -37,14 +44,15 @@ export function initPurchasesModule() {
       const debt = state.supplierDebtsDB.find((x) => String(x.id) === String(btn.getAttribute("data-id")));
       if (!debt) return;
 
+      const currentRemaining = Number(debt.remainingDebt) || 0;
       const inputVal = await showThemedPrompt(
         "Pelunasan Hutang Supplier",
-        `Sisa hutang kepada ${debt.supplier}: Rp ${Number(debt.remainingDebt || 0).toLocaleString("id-ID")}\nMasukkan nominal yang dibayar:`,
-        debt.remainingDebt
+        `Sisa hutang kepada ${debt.supplier}: Rp ${currentRemaining.toLocaleString("id-ID")}\nMasukkan nominal pembayaran:`,
+        currentRemaining
       );
       const paid = parseInt(inputVal, 10);
       if (paid > 0) {
-        debt.remainingDebt = Math.max(0, (Number(debt.remainingDebt) || 0) - paid);
+        debt.remainingDebt = Math.max(0, currentRemaining - paid);
         if (debt.remainingDebt === 0) {
           state.purchasesDB.forEach((p) => {
             if (p.nota === debt.nota) p.paidStatus = "Lunas";
@@ -54,7 +62,26 @@ export function initPurchasesModule() {
         }
         persistSupplierDebts();
         renderSupplierDebtsTable();
-        showScanToast("Pembayaran hutang dicatat");
+
+        // Potong kas laci fisik toko dan bukukan ke log keuangan
+        if (!state.financeDB) state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+        state.financeDB.cashBalance = Math.max(0, (Number(state.financeDB.cashBalance) || 0) - paid);
+        
+        const now = new Date();
+        const fullDateTimeStr = `${now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+        state.financeDB.logs.unshift({
+          id: `FIN-SUPP-DEBT-${Date.now()}`,
+          time: fullDateTimeStr,
+          type: "Bayar Hutang Supplier",
+          amount: paid,
+          note: `Pelunasan hutang supplier ${debt.supplier} (Faktur: ${debt.nota})`,
+          admin: state.currentUser ? state.currentUser.name : "Admin"
+        });
+        persistFinance();
+        renderFinanceDashboard();
+
+        showScanToast("Pembayaran hutang dicatat & kas dipotong");
       }
     });
   }
@@ -268,6 +295,37 @@ function initAddPurchaseEvents() {
           dueDate
         });
       });
+
+      // Penanganan keuangan saat pembelian tunai
+      if (method === "Tunai") {
+        if (!state.financeDB) state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+        const currentCash = Number(state.financeDB.cashBalance) || 0;
+
+        if (currentCash < grandTotalPurch) {
+          const proceed = await showThemedConfirm(
+            "Saldo Kas Kurang",
+            `Saldo kas laci (Rp ${currentCash.toLocaleString("id-ID")}) lebih kecil dari total belanja (Rp ${grandTotalPurch.toLocaleString("id-ID")}). Tetap simpan faktur dan potong kas?`,
+            "Tetap Simpan",
+            "Batal"
+          );
+          if (!proceed) return;
+        }
+
+        state.financeDB.cashBalance = Math.max(0, currentCash - grandTotalPurch);
+        const now = new Date();
+        const fullDateTimeStr = `${now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} • ${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+        state.financeDB.logs.unshift({
+          id: `FIN-PURCH-${Date.now()}`,
+          time: fullDateTimeStr,
+          type: "Belanja Kulakan (Tunai)",
+          amount: grandTotalPurch,
+          note: `Faktur Pembelian: ${nota} (${supplier})`,
+          admin: state.currentUser ? state.currentUser.name : "Admin"
+        });
+        persistFinance();
+        renderFinanceDashboard();
+      }
 
       persistProducts(modifiedProducts);
       persistPurchases();
