@@ -27,14 +27,13 @@ export function initReportsModule() {
     }, 80));
   }
 
-  // Event Delegation Terpusat untuk Tombol Edit & Hapus Transaksi
   const tbody = document.getElementById("reportsTableBody");
   if (tbody) {
     tbody.addEventListener("click", async (e) => {
       const editBtn = e.target.closest(".btn-edit-trx");
       if (editBtn) {
         const id = editBtn.getAttribute("data-id");
-        const trx = state.salesTransactions.find((t) => t.id === id);
+        const trx = state.salesTransactions.find((t) => String(t.id) === String(id));
         if (trx) openEditTrxPage(trx);
         return;
       }
@@ -42,7 +41,7 @@ export function initReportsModule() {
       const delBtn = e.target.closest(".btn-del-trx");
       if (delBtn) {
         const id = delBtn.getAttribute("data-id");
-        const trx = state.salesTransactions.find((t) => t.id === id);
+        const trx = state.salesTransactions.find((t) => String(t.id) === String(id));
         if (!trx) return;
 
         const ok = await showThemedConfirm(
@@ -54,7 +53,7 @@ export function initReportsModule() {
             restoreTransactionStock(trx);
             revertFinanceAndMember(trx, "Penghapusan Transaksi");
           }
-          state.salesTransactions = state.salesTransactions.filter((t) => t.id !== id);
+          state.salesTransactions = state.salesTransactions.filter((t) => String(t.id) !== String(id));
           deleteSaleDoc(id);
           persistSales();
           renderReports();
@@ -108,7 +107,7 @@ export function initReportsModule() {
     editTrxForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const id = document.getElementById("editTrxId").value;
-      const trx = state.salesTransactions.find((t) => t.id === id);
+      const trx = state.salesTransactions.find((t) => String(t.id) === String(id));
       if (!trx) return;
 
       const oldStatus = trx.status || "Sukses";
@@ -119,7 +118,6 @@ export function initReportsModule() {
       trx.total = parseInt(document.getElementById("editTrxTotal").value, 10) || 0;
       trx.status = newStatus;
 
-      // Pemulihan stok dan kas otomatis saat status nota berubah
       if (oldStatus !== "Dibatalkan" && newStatus === "Dibatalkan") {
         restoreTransactionStock(trx);
         revertFinanceAndMember(trx, "Pembatalan Transaksi");
@@ -141,13 +139,15 @@ export function initReportsModule() {
   renderReports();
 }
 
-// 1. Pemulihan Stok Barang (Restock ke Gudang)
 function restoreTransactionStock(trx) {
   if (!trx || !Array.isArray(trx.items)) return;
 
+  const modifiedProducts = [];
+
   trx.items.forEach((item) => {
     const prod = state.productsDB.find(
-      (p) => (item.id && p.id === item.id) || (p.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+      (p) => (item.id !== undefined && String(p.id) === String(item.id)) || 
+             (p.name && p.name.trim().toLowerCase() === String(item.name || "").trim().toLowerCase())
     );
     if (prod) {
       prod.stock = (Number(prod.stock) || 0) + (Number(item.qty) || 0);
@@ -168,33 +168,36 @@ function restoreTransactionStock(trx) {
           expireDate: ""
         }];
       }
+      modifiedProducts.push(prod);
     }
   });
 
-  persistProducts();
+  persistProducts(modifiedProducts);
   renderProducts();
   renderAllInventoryData();
 }
 
-// 2. Pemotongan Kembali Stok jika Status Dibatalkan diubah menjadi Sukses
 function reDeductTransactionStock(trx) {
   if (!trx || !Array.isArray(trx.items)) return;
 
+  const modifiedProducts = [];
+
   trx.items.forEach((item) => {
     const prod = state.productsDB.find(
-      (p) => (item.id && p.id === item.id) || (p.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+      (p) => (item.id !== undefined && String(p.id) === String(item.id)) || 
+             (p.name && p.name.trim().toLowerCase() === String(item.name || "").trim().toLowerCase())
     );
     if (prod) {
       deductProductStockFIFO(prod, item.qty || 1);
+      modifiedProducts.push(prod);
     }
   });
 
-  persistProducts();
+  persistProducts(modifiedProducts);
   renderProducts();
   renderAllInventoryData();
 }
 
-// 3. Revert Keuangan & Member saat Transaksi Dibatalkan/Dihapus
 function revertFinanceAndMember(trx, reason = "Pembatalan") {
   const totalAmt = Number(trx.total) || 0;
   const now = new Date();
@@ -204,7 +207,7 @@ function revertFinanceAndMember(trx, reason = "Pembatalan") {
   if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
 
   if (trx.paymentMethod === "Tunai") {
-    state.financeDB.cashBalance = Math.max(0, (state.financeDB.cashBalance || 0) - totalAmt);
+    state.financeDB.cashBalance = Math.max(0, (Number(state.financeDB.cashBalance) || 0) - totalAmt);
     state.financeDB.logs.unshift({
       id: `FIN-REV-${Date.now()}`,
       time: timeStr,
@@ -216,7 +219,7 @@ function revertFinanceAndMember(trx, reason = "Pembatalan") {
     persistFinance();
     renderFinanceDashboard();
   } else if (trx.paymentMethod === "Transfer / QRIS") {
-    state.financeDB.digitalBalance = Math.max(0, (state.financeDB.digitalBalance || 0) - totalAmt);
+    state.financeDB.digitalBalance = Math.max(0, (Number(state.financeDB.digitalBalance) || 0) - totalAmt);
     state.financeDB.logs.unshift({
       id: `FIN-REV-${Date.now()}`,
       time: timeStr,
@@ -228,26 +231,24 @@ function revertFinanceAndMember(trx, reason = "Pembatalan") {
     persistFinance();
     renderFinanceDashboard();
   } else if (trx.paymentMethod === "Piutang / Kasbon" && trx.member?.id) {
-    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    const mbr = state.membersDB.find((m) => String(m.id) === String(trx.member.id));
     if (mbr) {
-      mbr.debt = Math.max(0, (mbr.debt || 0) - totalAmt);
+      mbr.debt = Math.max(0, (Number(mbr.debt) || 0) - totalAmt);
       persistMembers();
     }
   }
 
-  // Tarik poin loyalitas yang didapat member dari transaksi ini
   if (trx.member?.id) {
-    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    const mbr = state.membersDB.find((m) => String(m.id) === String(trx.member.id));
     if (mbr) {
       const earnedPts = Math.floor(totalAmt / 1000);
-      mbr.points = Math.max(0, (mbr.points || 0) - earnedPts);
+      mbr.points = Math.max(0, (Number(mbr.points) || 0) - earnedPts);
       persistMembers();
       renderAllMemberData();
     }
   }
 }
 
-// 4. Re-Apply Keuangan & Member saat Transaksi Diaktifkan Kembali
 function reApplyFinanceAndMember(trx) {
   const totalAmt = Number(trx.total) || 0;
   const now = new Date();
@@ -257,7 +258,7 @@ function reApplyFinanceAndMember(trx) {
   if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
 
   if (trx.paymentMethod === "Tunai") {
-    state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + totalAmt;
+    state.financeDB.cashBalance = (Number(state.financeDB.cashBalance) || 0) + totalAmt;
     state.financeDB.logs.unshift({
       id: `FIN-${Date.now()}`,
       time: timeStr,
@@ -269,7 +270,7 @@ function reApplyFinanceAndMember(trx) {
     persistFinance();
     renderFinanceDashboard();
   } else if (trx.paymentMethod === "Transfer / QRIS") {
-    state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + totalAmt;
+    state.financeDB.digitalBalance = (Number(state.financeDB.digitalBalance) || 0) + totalAmt;
     state.financeDB.logs.unshift({
       id: `FIN-${Date.now()}`,
       time: timeStr,
@@ -281,18 +282,18 @@ function reApplyFinanceAndMember(trx) {
     persistFinance();
     renderFinanceDashboard();
   } else if (trx.paymentMethod === "Piutang / Kasbon" && trx.member?.id) {
-    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    const mbr = state.membersDB.find((m) => String(m.id) === String(trx.member.id));
     if (mbr) {
-      mbr.debt = (mbr.debt || 0) + totalAmt;
+      mbr.debt = (Number(mbr.debt) || 0) + totalAmt;
       persistMembers();
     }
   }
 
   if (trx.member?.id) {
-    const mbr = state.membersDB.find((m) => m.id === trx.member.id);
+    const mbr = state.membersDB.find((m) => String(m.id) === String(trx.member.id));
     if (mbr) {
       const earnedPts = Math.floor(totalAmt / 1000);
-      mbr.points = (mbr.points || 0) + earnedPts;
+      mbr.points = (Number(mbr.points) || 0) + earnedPts;
       persistMembers();
       renderAllMemberData();
     }
@@ -309,8 +310,8 @@ export function renderReports() {
   const filtered = state.salesTransactions.filter((trx) => {
     const memberName = trx.member ? trx.member.name.toLowerCase() : "";
     return (
-      trx.id.toLowerCase().includes(q) ||
-      trx.cashier.toLowerCase().includes(q) ||
+      String(trx.id).toLowerCase().includes(q) ||
+      String(trx.cashier || "").toLowerCase().includes(q) ||
       memberName.includes(q) ||
       String(trx.total).includes(q) ||
       (trx.status && trx.status.toLowerCase().includes(q))
@@ -331,14 +332,13 @@ export function renderReports() {
       trx.items.forEach((item) => {
         const qty = Number(item.qty || 1);
 
-        // Prioritaskan modal historis riil yang tersimpan di dalam struk transaksi
         let itemCost = 0;
         if (item.totalCost !== undefined) {
           itemCost = Number(item.totalCost);
         } else if (item.costPrice !== undefined) {
           itemCost = Number(item.costPrice) * qty;
         } else {
-          const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+          const prod = state.productsDB.find((p) => p.name.trim().toLowerCase() === String(item.name || "").trim().toLowerCase());
           itemCost = (prod ? Number(prod.costPrice || 0) : 0) * qty;
         }
 
@@ -348,7 +348,8 @@ export function renderReports() {
     }
   });
 
-  const grossProfit = Math.max(0, totalRev - totalHppSold);
+  // Perhitungan laba kotor riil tanpa manipulasi batas minimum Rp 0
+  const grossProfit = totalRev - totalHppSold;
 
   const totalOperationalExpense = (state.financeDB?.logs || [])
     .filter((l) => l.type === "Biaya Operasional")
@@ -371,7 +372,10 @@ export function renderReports() {
   const bestEl = document.getElementById("statBestSeller");
 
   if (revEl) revEl.textContent = `Rp ${totalRev.toLocaleString("id-ID")}`;
-  if (grossEl) grossEl.textContent = `Rp ${grossProfit.toLocaleString("id-ID")}`;
+  if (grossEl) {
+    grossEl.textContent = `${grossProfit < 0 ? '-' : ''}Rp ${Math.abs(grossProfit).toLocaleString("id-ID")}`;
+    grossEl.style.color = grossProfit >= 0 ? "var(--brand-accent)" : "var(--brand-danger)";
+  }
   if (netEl) {
     netEl.textContent = `${netProfit < 0 ? '-' : ''}Rp ${Math.abs(netProfit).toLocaleString("id-ID")}`;
     netEl.style.color = netProfit >= 0 ? "#16a34a" : "var(--brand-danger)";
@@ -479,7 +483,7 @@ function openFastMovingPage() {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-secondary); padding: 14px;">Belum ada data transaksi barang.</td></tr>`;
   } else {
     tbody.innerHTML = list.slice(0, 50).map((item) => {
-      const isUrgent = item.stock <= 15;
+      const isUrgent = (Number(item.stock) || 0) <= 15;
       return `
         <tr>
           <td><strong>${item.name}</strong><br><small style="color:var(--text-secondary);">${item.cat}</small></td>
