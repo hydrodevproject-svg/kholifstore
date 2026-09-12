@@ -1,6 +1,6 @@
 /* ================= KOMPONEN KARTU, SUB-MENU HUB, TABEL & TOMBOL ================= */
 .threads-container {
-  padding: 12px 12px 75px 12px;
+  padding: 14px 12px 75px 12px;
   max-width: 960px;
   margin: 0 auto;
 }
@@ -9,7 +9,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .view-action-header h2 {
@@ -21,11 +21,12 @@
 }
 
 .view-action-header p {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-secondary);
+  line-height: 1.35;
 }
 
-/* ================= GRID KARTU MENU PENGATURAN / MEMBER ================= */
+/* ================= GRID KARTU MENU PENGATURAN / MEMBER / KEUANGAN ================= */
 .settings-sub-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -34,53 +35,54 @@
 }
 
 .settings-menu-card {
-  background-color: var(--surface) !important;
-  border: 1px solid var(--border-light) !important;
+  background-color: var(--surface);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 12px 10px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   cursor: pointer;
-  transition: all 0.12s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .settings-menu-card:active {
-  transform: scale(0.97);
-  border-color: var(--brand-primary) !important;
+  background-color: var(--surface-hover);
+  border-color: var(--brand-primary);
 }
 
 .sub-card-icon-box {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
-  background: #f1f5f9;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand-accent);
+  color: var(--brand-primary);
   margin-bottom: 8px;
 }
 
 .sub-card-icon-box .mono-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .sub-card-title {
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.2px;
   margin-bottom: 2px;
 }
 
 .sub-card-desc {
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--text-secondary);
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .settings-detail-nav {
@@ -99,15 +101,19 @@
 .btn-back-screen {
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: #f1f5f9;
+  gap: 6px;
+  background: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
+  padding: 6px 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-primary);
   cursor: pointer;
+}
+
+.btn-back-screen:active {
+  background: var(--surface-hover);
 }
 
 .sub-detail-panel {
@@ -115,16 +121,16 @@
 }
 
 @keyframes panel-fade-in {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .threads-card {
-  background-color: var(--surface) !important;
-  border: 1px solid var(--border-light) !important;
+  background-color: var(--surface);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .card-section-title {
@@ -152,11 +158,11 @@
 .table-filter-bar input {
   flex: 1;
   max-width: 100%;
-  height: 36px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 0 12px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  background: #f8fafc;
+  background: var(--surface-subtle);
   font-size: 11.5px;
   outline: none;
 }
@@ -183,20 +189,22 @@
 
 .data-table th,
 .data-table td {
-  padding: 8px 10px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--border-light);
   text-align: left;
 }
 
 .data-table th {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   color: var(--text-secondary);
   font-weight: 700;
   font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
 }
 
 .btn-table-action {
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: var(--radius-sm);
   font-size: 10.5px;
   font-weight: 700;
@@ -207,49 +215,54 @@
   margin-left: 2px;
 }
 
+.btn-table-action:active {
+  background: var(--surface-hover);
+}
+
 .btn-delete {
   color: var(--brand-danger);
   border-color: #fee2e2;
+  background: #fffafa;
 }
 
 .badge-mono {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
-  background: #e2e8f0;
-  color: var(--text-primary);
+  background: #f1f5f9;
+  color: var(--text-secondary);
   font-size: 9.5px;
   font-weight: 700;
 }
 
 .badge-status-sukses, .badge-exp-safe {
-  background: #dcfce7;
+  background: #ecfdf5;
   color: #15803d;
 }
 
 .badge-exp-warn {
-  background: #fef3c7;
-  color: #d97706;
+  background: #fffbeb;
+  color: #b45309;
 }
 
 .badge-status-dibatalkan, .badge-exp-danger {
-  background: #fee2e2;
+  background: #fef2f2;
   color: var(--brand-danger);
-  border: 1px solid #fecaca;
 }
 
-/* ================= KARTU STATISTIK LAPORAN ================= */
+/* ================= KARTU STATISTIK LAPORAN & KEUANGAN ================= */
 .report-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
   gap: 8px;
 }
 
 .stat-card {
-  background-color: var(--surface) !important;
+  background-color: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-card small {
@@ -273,10 +286,10 @@
 }
 
 .btn-threads-primary {
-  background: var(--brand-primary) !important;
-  color: #ffffff !important;
+  background: var(--brand-primary);
+  color: #ffffff;
   border: none;
-  padding: 7px 12px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
   font-weight: 700;
   font-size: 11.5px;
@@ -285,10 +298,15 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  transition: opacity 0.1s ease;
+}
+
+.btn-threads-primary:active {
+  opacity: 0.9;
 }
 
 .btn-threads-primary.block {
-  width: 100% !important;
+  width: 100%;
   height: 42px;
 }
 
@@ -298,32 +316,30 @@
   color: var(--text-primary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.12s ease;
-}
-
-.btn-threads-secondary.block {
-  width: 100% !important;
 }
 
 .btn-threads-secondary:active {
   background-color: var(--surface-hover);
-  transform: scale(0.98);
+}
+
+.btn-threads-secondary.block {
+  width: 100%;
 }
 
 .btn-whatsapp-action {
   height: 40px;
-  background-color: #25d366 !important;
-  color: #ffffff !important;
+  background-color: #15803d;
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -336,13 +352,13 @@
   display: flex;
   gap: 6px;
   border-bottom: 1px solid var(--border-light);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .it-tab-btn {
   background: none;
   border: none;
-  padding: 7px 10px;
+  padding: 8px 12px;
   font-size: 11.5px;
   font-weight: 700;
   color: var(--text-secondary);
@@ -369,7 +385,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 2px 2px 2px;
+  padding: 10px 2px 2px 2px;
   margin-top: 8px;
   border-top: 1px solid var(--border-light);
   font-size: 11px;
@@ -383,8 +399,8 @@
 }
 
 .btn-page-nav {
-  padding: 4px 8px;
-  background: #f8fafc;
+  padding: 5px 10px;
+  background: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 10.5px;
@@ -400,7 +416,7 @@
 
 /* ================= CONSOLE IT TOOLBAR & TEXTAREA ================= */
 .console-toolbar-card {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -409,20 +425,16 @@
 
 .console-textarea {
   width: 100%;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
   font-size: 11.5px;
   padding: 10px;
-  border: 1.5px solid var(--border-light);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: #0f172a;
   color: #38bdf8;
   outline: none;
   resize: vertical;
   line-height: 1.4;
-}
-
-.console-textarea:focus {
-  border-color: var(--brand-accent);
 }
 
 .console-json-preview {
@@ -439,15 +451,15 @@
   text-overflow: ellipsis;
 }
 
-/* ================= KONEKSI BLUETOOTH PRINTER ================= */
+/* ================= BLUETOOTH PRINTER SETUP ================= */
 .printer-bluetooth-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: 12px;
   gap: 8px;
 }
 
@@ -464,20 +476,20 @@
 }
 
 .advance-printer-card {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px dashed var(--border-light);
   border-radius: var(--radius-md);
   padding: 12px;
 }
 
-/* ================= METRIK & PROGRESS STORAGE ================= */
+/* ================= METRIK & STORAGE ================= */
 .metrics-card {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 12px 14px;
   margin-bottom: 10px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
 }
 
 .metrics-head-row {
@@ -497,7 +509,7 @@
 }
 
 .btn-metrics-refresh {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -514,7 +526,7 @@
 }
 
 .metrics-stat-box {
-  background: #f8fafc;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
@@ -538,9 +550,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 8px;
-  background: #f8fafc;
+  padding: 8px 10px;
+  background: var(--surface-subtle);
   border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
 }
 
 .progress-container {
@@ -562,9 +575,9 @@
 }
 
 .progress-label-row span {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
-  color: #1e40af;
+  color: var(--brand-accent);
 }
 
 .progress-track {
@@ -582,11 +595,11 @@
 }
 
 .progress-fill-blue {
-  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  background: var(--brand-accent);
 }
 
 .progress-fill-purple {
-  background: linear-gradient(90deg, #9333ea, #db2777);
+  background: #8b5cf6;
 }
 
 .progress-meta-row {
