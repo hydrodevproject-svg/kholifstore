@@ -146,7 +146,7 @@ function updateInventoryBadges() {
   state.productsDB.forEach((p) => {
     if (p && Array.isArray(p.batches)) {
       p.batches.forEach((b) => {
-        if (b && b.expireDate && b.qty > 0) {
+        if (b && b.expireDate && (Number(b.qty) || 0) > 0) {
           const diffDays = Math.ceil((new Date(b.expireDate) - now) / (1000 * 60 * 60 * 24));
           if (diffDays <= 30) expCount++;
         }
@@ -165,7 +165,7 @@ function updateInventoryBadges() {
 }
 
 function openProductFormPage(prod = null) {
-  editingProductId = prod ? prod.id : null;
+  editingProductId = prod ? String(prod.id) : null;
   const screen = document.getElementById("productPageScreen");
   const title = document.getElementById("productPageTitle");
   const fBarcode = document.getElementById("prodFormBarcode");
@@ -250,7 +250,7 @@ async function handleSaveProduct(e) {
   let targetProd = null;
 
   if (editingProductId) {
-    const prod = state.productsDB.find((p) => p && p.id === editingProductId);
+    const prod = state.productsDB.find((p) => p && String(p.id) === String(editingProductId));
     if (prod) {
       prod.barcode = barcode;
       prod.name = name;
@@ -260,7 +260,7 @@ async function handleSaveProduct(e) {
 
       if (Array.isArray(prod.batches)) {
         prod.batches.forEach((b) => {
-          if (b.qty > 0) {
+          if ((Number(b.qty) || 0) > 0) {
             b.buyPrice = costPrice;
             b.sellPrice = price;
           }
@@ -290,8 +290,9 @@ async function handleSaveProduct(e) {
     state.productsDB.unshift(targetProd);
   }
 
-  // Simpan spesifik produk langsung ke dokumen Firestore
-  persistProducts(targetProd);
+  if (targetProd) {
+    persistProducts(targetProd);
+  }
   renderAllInventoryData();
   renderProducts();
   window.history.back();
@@ -308,7 +309,7 @@ function renderInventoryCatalogTable() {
     if (!p || typeof p !== "object") return false;
     if (!q) return true;
     const name = (p.name || "").toLowerCase();
-    const barcode = (p.barcode || "").toLowerCase();
+    const barcode = String(p.barcode || "").toLowerCase();
     const cat = (p.cat || "").toLowerCase();
     return name.includes(q) || barcode.includes(q) || cat.includes(q);
   });
@@ -393,22 +394,22 @@ function renderInventoryCatalogTable() {
 
   tbody.querySelectorAll(".btn-edit-prod").forEach((b) => {
     b.onclick = () => {
-      const prod = state.productsDB.find((p) => p && p.id === Number(b.getAttribute("data-id")));
+      const prod = state.productsDB.find((p) => p && String(p.id) === String(b.getAttribute("data-id")));
       if (prod) openProductFormPage(prod);
     };
   });
 
   tbody.querySelectorAll(".btn-del-prod").forEach((b) => {
     b.onclick = async () => {
-      const id = Number(b.getAttribute("data-id"));
-      const prod = state.productsDB.find((p) => p && p.id === id);
+      const id = b.getAttribute("data-id");
+      const prod = state.productsDB.find((p) => p && String(p.id) === String(id));
       if (!prod) return;
 
       const ok = await showThemedConfirm("Hapus Barang", `Hapus barang "${prod.name}" dari sistem katalog?`);
       if (ok) {
-        state.productsDB = state.productsDB.filter((p) => p && p.id !== id);
-        deleteProductDoc(id); // Hapus dokumen cloud individual
-        persistProducts();
+        state.productsDB = state.productsDB.filter((p) => p && String(p.id) !== String(id));
+        deleteProductDoc(id);
+        persistProducts(state.productsDB);
         renderAllInventoryData();
         renderProducts();
         showScanToast("Barang dihapus");
@@ -427,7 +428,7 @@ function renderExpiredBatchesTable() {
   (state.productsDB || []).forEach((p) => {
     if (p && Array.isArray(p.batches)) {
       p.batches.forEach((b) => {
-        if (b && b.qty > 0 && b.expireDate) {
+        if (b && b.expireDate && (Number(b.qty) || 0) > 0) {
           const diffDays = Math.ceil((new Date(b.expireDate) - now) / (1000 * 60 * 60 * 24));
           batchesList.push({
             productName: p.name || "Tanpa Nama",
@@ -551,8 +552,8 @@ function initStockOpnameEvents() {
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const pId = Number(document.getElementById("opnameSelectedProductId").value);
-      const prod = state.productsDB.find((p) => p && p.id === pId);
+      const pId = document.getElementById("opnameSelectedProductId").value;
+      const prod = state.productsDB.find((p) => p && String(p.id) === String(pId));
       if (!prod) {
         await showThemedAlert("Pilih Barang", "Silakan tentukan barang yang di-audit terlebih dahulu!", "error");
         return;
@@ -563,7 +564,6 @@ function initStockOpnameEvents() {
       const diff = physStock - sysStock;
       const note = document.getElementById("opnameNote").value.trim();
 
-      // Sinkronkan stok fisik pada produk dan batch aktif
       prod.stock = physStock;
       if (Array.isArray(prod.batches) && prod.batches.length > 0) {
         prod.batches.forEach((b) => { b.qty = 0; });
@@ -578,7 +578,7 @@ function initStockOpnameEvents() {
           expireDate: ""
         }];
       }
-      persistProducts(prod); // Sinkron langsung per-produk
+      persistProducts(prod);
 
       const newOpname = {
         id: `OPN-${Date.now()}`,
@@ -591,7 +591,7 @@ function initStockOpnameEvents() {
         note
       };
       state.stockOpnamesDB.unshift(newOpname);
-      persistOpnames(newOpname); // Sinkron langsung per-dokumen opname
+      persistOpnames(newOpname);
 
       window.history.back();
       renderAllInventoryData();
@@ -610,7 +610,7 @@ function renderOpnameProductOptions(q = "") {
   const filtered = state.productsDB.filter((p) => {
     if (!p) return false;
     const name = (p.name || "").toLowerCase();
-    const barcode = (p.barcode || "").toLowerCase();
+    const barcode = String(p.barcode || "").toLowerCase();
     const cat = (p.cat || "").toLowerCase();
     return name.includes(q) || barcode.includes(q) || cat.includes(q);
   });
