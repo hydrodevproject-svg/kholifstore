@@ -1,8 +1,9 @@
 // src/members.js
-import { state, persistMembers } from "./state.js";
+import { state, persistMembers, persistFinance } from "./state.js";
 import { showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
 import { showScanToast, debounce, normalizePhoneNumber } from "./utils.js";
 import { generateWhatsAppText } from "./printer.js";
+import { renderFinanceDashboard } from "./finance.js";
 
 export function initMembersModule() {
   const memberMenuView = document.getElementById("memberMenuView");
@@ -54,13 +55,12 @@ export function initMembersModule() {
     memberSearch.addEventListener("input", debounce(() => renderMemberList(), 80));
   }
 
-  // Event Delegation Terpusat: Tabel Daftar Member (Edit & Hapus)
   const memberTableBody = document.getElementById("memberTableBody");
   if (memberTableBody) {
     memberTableBody.addEventListener("click", async (e) => {
       const editBtn = e.target.closest(".btn-edit-mbr");
       if (editBtn) {
-        const mbr = state.membersDB.find((x) => x.id === editBtn.getAttribute("data-id"));
+        const mbr = state.membersDB.find((x) => String(x.id) === String(editBtn.getAttribute("data-id")));
         if (mbr) openEditMemberModal(mbr);
         return;
       }
@@ -70,7 +70,7 @@ export function initMembersModule() {
         const id = delBtn.getAttribute("data-id");
         const confirmed = await showThemedConfirm("Hapus Member", "Apakah Anda yakin ingin menghapus member ini dari database?");
         if (confirmed) {
-          state.membersDB = state.membersDB.filter((x) => x.id !== id);
+          state.membersDB = state.membersDB.filter((x) => String(x.id) !== String(id));
           persistMembers();
           renderAllMemberData();
           showScanToast("Member berhasil dihapus");
@@ -79,37 +79,56 @@ export function initMembersModule() {
     });
   }
 
-  // Event Delegation Terpusat: Tabel Piutang & Kasbon
   const memberDebtTableBody = document.getElementById("memberDebtTableBody");
   if (memberDebtTableBody) {
     memberDebtTableBody.addEventListener("click", async (e) => {
       const payBtn = e.target.closest(".btn-pay-debt");
       if (!payBtn) return;
-      const mbr = state.membersDB.find((x) => x.id === payBtn.getAttribute("data-id"));
+      const mbr = state.membersDB.find((x) => String(x.id) === String(payBtn.getAttribute("data-id")));
       if (!mbr) return;
 
+      const currentDebt = Number(mbr.debt) || 0;
       const payInput = await showThemedPrompt(
         "Pelunasan Kasbon",
-        `Sisa piutang ${mbr.name}: Rp ${mbr.debt.toLocaleString("id-ID")}\nMasukkan nominal pelunasan:`,
-        mbr.debt
+        `Sisa piutang ${mbr.name}: Rp ${currentDebt.toLocaleString("id-ID")}\nMasukkan nominal pelunasan:`,
+        currentDebt
       );
       const payVal = parseInt(payInput, 10);
       if (payVal > 0) {
-        mbr.debt = Math.max(0, mbr.debt - payVal);
+        mbr.debt = Math.max(0, currentDebt - payVal);
         persistMembers();
+
+        if (!state.financeDB) {
+          state.financeDB = { cashBalance: 0, digitalBalance: 0, logs: [] };
+        }
+        state.financeDB.cashBalance = (Number(state.financeDB.cashBalance) || 0) + payVal;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
+        const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
+        state.financeDB.logs.unshift({
+          id: `FIN-DEBT-${Date.now()}`,
+          time: `${dateStr} • ${timeStr}`,
+          type: "Pelunasan Kasbon",
+          amount: payVal,
+          note: `Pelunasan kasbon oleh member: ${mbr.name}`,
+          admin: state.currentUser ? state.currentUser.name : "Kasir"
+        });
+        persistFinance();
+        renderFinanceDashboard();
+
         renderAllMemberData();
-        showScanToast("Pembayaran kasbon dicatat");
+        showScanToast("Pembayaran kasbon dicatat ke kas laci");
       }
     });
   }
 
-  // Event Delegation Terpusat: Tabel Riwayat Belanja Member (Kirim WA)
   const memberOrdersTableBody = document.getElementById("memberOrdersTableBody");
   if (memberOrdersTableBody) {
     memberOrdersTableBody.addEventListener("click", async (e) => {
       const waBtn = e.target.closest(".btn-wa-send");
       if (!waBtn) return;
-      const trx = state.salesTransactions.find((x) => x.id === waBtn.getAttribute("data-id"));
+      const trx = state.salesTransactions.find((x) => String(x.id) === String(waBtn.getAttribute("data-id")));
       if (!trx) return;
 
       let targetPhone = normalizePhoneNumber(trx.member?.phone || trx.member?.wa || "");
@@ -144,7 +163,7 @@ export function renderAllMemberData() {
   const countBadge = document.getElementById("badgeTotalMemberCount");
   if (countBadge) countBadge.textContent = `${state.membersDB.length} Akun`;
 
-  const inDebtCount = state.membersDB.filter((m) => m.debt > 0).length;
+  const inDebtCount = state.membersDB.filter((m) => (Number(m.debt) || 0) > 0).length;
   const debtBadge = document.getElementById("badgeTotalDebtCount");
   if (debtBadge) debtBadge.textContent = `${inDebtCount} Kasbon`;
 
@@ -160,7 +179,9 @@ export function renderMemberList() {
   const searchInput = document.getElementById("memberSearch");
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
   const filtered = state.membersDB.filter(
-    (m) => m.name.toLowerCase().includes(q) || m.phone.includes(q) || m.id.toLowerCase().includes(q)
+    (m) => (m.name && m.name.toLowerCase().includes(q)) || 
+           (m.phone && String(m.phone).includes(q)) || 
+           (m.id && String(m.id).toLowerCase().includes(q))
   );
 
   const totalEl = document.getElementById("memberCountTotal");
@@ -171,41 +192,47 @@ export function renderMemberList() {
     return;
   }
 
-  tbody.innerHTML = filtered.map((m) => `
-    <tr>
-      <td><strong>${m.name}</strong><br><small style="color:var(--text-secondary);">${m.phone}</small></td>
-      <td><span class="badge-mono">${m.tier}</span></td>
-      <td><strong>${m.points}</strong> Poin</td>
-      <td><strong style="color: ${m.debt > 0 ? 'var(--brand-danger)' : 'var(--text-primary)'};">Rp ${m.debt.toLocaleString("id-ID")}</strong></td>
-      <td style="text-align: right;">
-        <button type="button" class="btn-table-action btn-edit-mbr" data-id="${m.id}">Edit</button>
-        <button type="button" class="btn-table-action btn-delete btn-del-mbr" data-id="${m.id}">Hapus</button>
-      </td>
-    </tr>
-  `).join("");
+  tbody.innerHTML = filtered.map((m) => {
+    const debt = Number(m.debt) || 0;
+    return `
+      <tr>
+        <td><strong>${m.name}</strong><br><small style="color:var(--text-secondary);">${m.phone}</small></td>
+        <td><span class="badge-mono">${m.tier}</span></td>
+        <td><strong>${m.points}</strong> Poin</td>
+        <td><strong style="color: ${debt > 0 ? 'var(--brand-danger)' : 'var(--text-primary)'};">Rp ${debt.toLocaleString("id-ID")}</strong></td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-table-action btn-edit-mbr" data-id="${m.id}">Edit</button>
+          <button type="button" class="btn-table-action btn-delete btn-del-mbr" data-id="${m.id}">Hapus</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 export function renderMemberDebts() {
   const tbody = document.getElementById("memberDebtTableBody");
   if (!tbody) return;
 
-  const inDebt = state.membersDB.filter((m) => m.debt > 0);
+  const inDebt = state.membersDB.filter((m) => (Number(m.debt) || 0) > 0);
   if (inDebt.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary); padding: 18px;">Tidak ada kasbon member yang tertunda. Semua lunas!</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = inDebt.map((m) => `
-    <tr>
-      <td><strong>${m.name}</strong></td>
-      <td>${m.phone}</td>
-      <td><strong style="color:var(--brand-danger);">Rp ${m.debt.toLocaleString("id-ID")}</strong></td>
-      <td><span class="badge-mono" style="background:#fee2e2; color:var(--brand-danger);">Belum Lunas</span></td>
-      <td style="text-align: right;">
-        <button type="button" class="btn-table-action btn-pay-debt" data-id="${m.id}">Lunasi Kasbon</button>
-      </td>
-    </tr>
-  `).join("");
+  tbody.innerHTML = inDebt.map((m) => {
+    const debt = Number(m.debt) || 0;
+    return `
+      <tr>
+        <td><strong>${m.name}</strong></td>
+        <td>${m.phone}</td>
+        <td><strong style="color:var(--brand-danger);">Rp ${debt.toLocaleString("id-ID")}</strong></td>
+        <td><span class="badge-mono" style="background:#fee2e2; color:var(--brand-danger);">Belum Lunas</span></td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-table-action btn-pay-debt" data-id="${m.id}">Lunasi Kasbon</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 export function renderMemberOrders() {
@@ -218,15 +245,14 @@ export function renderMemberOrders() {
     return;
   }
 
-  // Menampilkan 50 riwayat belanja terakhir agar peramban ponsel tetap responsif
   tbody.innerHTML = memberTrx.slice(0, 50).map((trx) => {
-    const pts = Math.floor(trx.total / 1000);
+    const pts = Math.floor((Number(trx.total) || 0) / 1000);
     return `
       <tr>
         <td><strong>${trx.id}</strong></td>
         <td><strong>${trx.member.name}</strong><br><small style="color:var(--text-secondary);">${trx.member.phone || '-'}</small></td>
         <td>${trx.time}</td>
-        <td><strong>Rp ${trx.total.toLocaleString("id-ID")}</strong></td>
+        <td><strong>Rp ${Number(trx.total || 0).toLocaleString("id-ID")}</strong></td>
         <td><span class="badge-mono" style="color:var(--brand-success); background:#ecfdf5;">+${pts} Poin</span></td>
         <td style="text-align: right;">
           <button type="button" class="btn-table-action btn-wa-send" data-id="${trx.id}">WA Nota</button>
@@ -279,7 +305,7 @@ function initMemberFormEvents() {
       else if (tier.includes("10%")) discount = 10;
       else if (tier.includes("15%")) discount = 15;
 
-      const existingIdx = state.membersDB.findIndex((x) => x.id === id);
+      const existingIdx = state.membersDB.findIndex((x) => String(x.id) === String(id));
       if (existingIdx !== -1) {
         state.membersDB[existingIdx] = { ...state.membersDB[existingIdx], name, phone, tier, discount, points };
       } else {
