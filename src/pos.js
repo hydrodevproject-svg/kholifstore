@@ -1,7 +1,7 @@
 // src/pos.js
 import { state, persistProducts, persistSales, persistMembers, persistFinance } from "./state.js";
 import { showThemedAlert, showThemedConfirm, showThemedPrompt, reinforceHistoryBarrier } from "./ui.js";
-import { showScanToast, playCashChime, normalizePhoneNumber } from "./utils.js";
+import { showScanToast, playCashChime, playScannerBeep, normalizePhoneNumber } from "./utils.js";
 import { printThermalReceipt, generateWhatsAppText } from "./printer.js";
 import { refreshProductPriceFromBatches } from "./purchases.js";
 import { renderAllInventoryData } from "./inventory.js";
@@ -21,22 +21,23 @@ export function initPosModule() {
 }
 
 export function deductProductStockFIFO(prod, deductQty) {
-  let remaining = deductQty;
+  let remaining = Number(deductQty) || 0;
   let totalCost = 0;
 
   if (prod.batches && Array.isArray(prod.batches) && prod.batches.length > 0) {
     for (let i = 0; i < prod.batches.length; i++) {
       const batch = prod.batches[i];
-      if (batch.qty > 0) {
-        const take = Math.min(batch.qty, remaining);
+      const batchQty = Number(batch.qty) || 0;
+      if (batchQty > 0) {
+        const take = Math.min(batchQty, remaining);
         const unitCost = Number(batch.buyPrice) || Number(prod.costPrice) || 0;
         totalCost += take * unitCost;
-        batch.qty -= take;
+        batch.qty = batchQty - take;
         remaining -= take;
         if (remaining <= 0) break;
       }
     }
-    prod.stock = prod.batches.reduce((sum, b) => sum + b.qty, 0);
+    prod.stock = prod.batches.reduce((sum, b) => sum + (Number(b.qty) || 0), 0);
     refreshProductPriceFromBatches(prod);
   } else {
     prod.stock = Math.max(0, (Number(prod.stock) || 0) - deductQty);
@@ -87,7 +88,7 @@ export function renderProducts() {
   const productsGrid = document.getElementById("productsGrid");
   if (!productsGrid) return;
 
-  const query = state.searchQuery.toLowerCase().trim();
+  const query = (state.searchQuery || "").toLowerCase().trim();
   const filtered = state.productsDB.filter((p) => {
     if (!p) return false;
     const matchCat = state.currentCategory === "all" || p.cat === state.currentCategory;
@@ -101,7 +102,10 @@ export function renderProducts() {
   const frag = document.createDocumentFragment();
 
   displayList.forEach((p) => {
-    const isOutOfStock = (Number(p.stock) || 0) <= 0;
+    const stockNum = Number(p.stock) || 0;
+    const isOutOfStock = stockNum <= 0;
+    const priceNum = Number(p.price ?? p.sellPrice) || 0;
+
     const row = document.createElement("div");
     row.className = `product-list-row ${isOutOfStock ? "out-of-stock" : ""}`;
     row.setAttribute("data-product-id", String(p.id));
@@ -114,19 +118,19 @@ export function renderProducts() {
           <div class="prod-submeta">
             <span class="prod-cat-badge">${p.cat || "Umum"}</span>
             <span class="prod-stock-badge ${isOutOfStock ? "empty" : ""}">
-              ${isOutOfStock ? "Stok Habis" : `Sisa ${p.stock}`}
+              ${isOutOfStock ? "Stok Habis" : `Sisa ${stockNum}`}
             </span>
           </div>
         </div>
       </div>
       <div class="prod-row-right">
-        <span class="prod-price-text">Rp ${Number(p.price || 0).toLocaleString("id-ID")}</span>
-        <div class="btn-add-circle">
+        <span class="prod-price-text">Rp ${priceNum.toLocaleString("id-ID")}</span>
+        <button type="button" class="btn-add-circle" data-id="${String(p.id)}" aria-label="Tambah ke Keranjang">
           <svg class="mono-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-        </div>
+        </button>
       </div>
     `;
     frag.appendChild(row);
@@ -154,6 +158,16 @@ export function renderCart() {
   const discountRow = document.getElementById("discountRow");
   const pointsEarnRow = document.getElementById("pointsEarnRow");
 
+  // Sinkronkan visibilitas tombol apung keranjang pada layar ponsel
+  const fab = document.getElementById("btnOpenCartMobile");
+  const isTabletOrDesktop = document.body.classList.contains("mode-tablet") || window.innerWidth >= 1024;
+  if (fab && !isTabletOrDesktop) {
+    if (state.currentViewId === "view-pos") {
+      fab.classList.remove("hidden");
+      fab.style.display = "flex";
+    }
+  }
+
   if (state.cart.length === 0) {
     orderList.innerHTML = `
       <div class="empty-state">
@@ -179,7 +193,7 @@ export function renderCart() {
   let subtotal = 0;
 
   state.cart.forEach((item) => {
-    const priceNum = Number(item.price) || 0;
+    const priceNum = Number(item.price ?? item.sellPrice) || 0;
     const qtyNum = Number(item.qty) || 0;
     const sub = priceNum * qtyNum;
     subtotal += sub;
@@ -208,7 +222,7 @@ export function renderCart() {
   let discountDeduction = 0;
   if (state.currentDiscountNominal > 0) {
     discountDeduction = state.currentDiscountNominal;
-  } else if (state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
+  } else if (state.currentAttachedMember && (Number(state.currentAttachedMember.discount) || 0) > 0) {
     const rawDisc = subtotal * (Number(state.currentAttachedMember.discount) / 100);
     discountDeduction = Math.round(rawDisc / 500) * 500;
   }
@@ -228,7 +242,7 @@ export function renderCart() {
   }
 
   const baseAfterDiscount = Math.max(0, subtotal - discountDeduction);
-  const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
+  const isPpnActive = Boolean(state.featuresConfig?.feat_pajak?.enabled);
   const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
   const tax = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
   const grandTotal = baseAfterDiscount + tax;
@@ -254,24 +268,40 @@ export function renderCart() {
 }
 
 export async function addToCart(prod, fromScanner = false) {
-  const currentProd = state.productsDB.find((p) => String(p.id) === String(prod.id));
-  if (!currentProd || (Number(currentProd.stock) || 0) <= 0) {
+  const currentProd = state.productsDB.find((p) => p && String(p.id) === String(prod.id));
+  const maxStock = Number(currentProd?.stock) || 0;
+
+  if (!currentProd || maxStock <= 0) {
     if (!fromScanner) await showThemedAlert("Stok Habis", `Produk "${prod.name}" sedang habis.`, "error");
     return false;
   }
 
   const existing = state.cart.find((i) => String(i.id) === String(prod.id));
   if (existing) {
-    if (existing.qty >= currentProd.stock) {
-      if (!fromScanner) await showThemedAlert("Batas Stok", `Sisa stok hanya tersisa ${currentProd.stock} pcs.`, "info");
+    const currentQty = Number(existing.qty) || 0;
+    if (currentQty >= maxStock) {
+      if (!fromScanner) await showThemedAlert("Batas Stok", `Sisa stok hanya tersisa ${maxStock} pcs.`, "info");
       return false;
     }
-    existing.qty++;
+    existing.qty = currentQty + 1;
   } else {
-    state.cart.push({ ...prod, qty: 1 });
+    const itemPrice = Number(prod.price ?? prod.sellPrice) || 0;
+    const itemCost = Number(prod.costPrice ?? prod.buyPrice) || 0;
+    state.cart.push({
+      ...prod,
+      price: itemPrice,
+      costPrice: itemCost,
+      qty: 1
+    });
   }
 
   renderCart();
+
+  if (!fromScanner) {
+    playScannerBeep(true);
+    showScanToast(`${prod.name} (+1)`);
+  }
+
   return true;
 }
 
@@ -280,12 +310,15 @@ export async function updateQty(id, delta) {
   if (!item) return;
 
   const currentProd = state.productsDB.find((p) => String(p.id) === String(id));
-  if (delta > 0 && currentProd && item.qty + delta > currentProd.stock) {
-    await showThemedAlert("Batas Maksimal", `Sisa stok hanya tersisa ${currentProd.stock} pcs.`, "info");
+  const maxStock = Number(currentProd?.stock) || 0;
+  const currentQty = Number(item.qty) || 0;
+
+  if (delta > 0 && currentProd && (currentQty + delta) > maxStock) {
+    await showThemedAlert("Batas Maksimal", `Sisa stok hanya tersisa ${maxStock} pcs.`, "info");
     return;
   }
 
-  item.qty += delta;
+  item.qty = currentQty + delta;
   if (item.qty <= 0) {
     state.cart = state.cart.filter((i) => String(i.id) !== String(id));
     if (state.cart.length === 0) {
@@ -317,7 +350,7 @@ function initPosEvents() {
       const row = e.target.closest(".product-list-row");
       if (!row || row.classList.contains("out-of-stock")) return;
       const pId = row.getAttribute("data-product-id");
-      const prod = state.productsDB.find((p) => String(p.id) === String(pId));
+      const prod = state.productsDB.find((p) => p && String(p.id) === String(pId));
       if (prod) addToCart(prod);
     });
   }
@@ -327,11 +360,13 @@ function initPosEvents() {
     orderList.addEventListener("click", (e) => {
       const minusBtn = e.target.closest(".btn-minus");
       if (minusBtn) {
+        e.stopPropagation();
         updateQty(minusBtn.getAttribute("data-id"), -1);
         return;
       }
       const plusBtn = e.target.closest(".btn-plus");
       if (plusBtn) {
+        e.stopPropagation();
         updateQty(plusBtn.getAttribute("data-id"), 1);
       }
     });
@@ -467,16 +502,19 @@ function initPosEvents() {
         const inputPaidEl = document.getElementById("inputPaid");
         const paymentMethod = payMethod ? payMethod.value : "Tunai";
 
-        const subtotalNum = state.cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
+        const subtotalNum = state.cart.reduce((sum, item) => {
+          const itemPrice = Number(item.price ?? item.sellPrice) || 0;
+          return sum + (itemPrice * Number(item.qty));
+        }, 0);
 
         let appliedDiscount = state.currentDiscountNominal;
-        if (appliedDiscount === 0 && state.currentAttachedMember && state.currentAttachedMember.discount > 0) {
-          appliedDiscount = Math.round((subtotalNum * (state.currentAttachedMember.discount / 100)) / 500) * 500;
+        if (appliedDiscount === 0 && state.currentAttachedMember && (Number(state.currentAttachedMember.discount) || 0) > 0) {
+          appliedDiscount = Math.round((subtotalNum * (Number(state.currentAttachedMember.discount) / 100)) / 500) * 500;
         }
         appliedDiscount = Math.min(subtotalNum, appliedDiscount);
 
         const baseAfterDiscount = Math.max(0, subtotalNum - appliedDiscount);
-        const isPpnActive = Boolean(state.featuresConfig.feat_pajak?.enabled);
+        const isPpnActive = Boolean(state.featuresConfig?.feat_pajak?.enabled);
         const rawTax = isPpnActive ? Math.round(baseAfterDiscount * 0.11) : 0;
         const taxNum = isPpnActive ? Math.round(rawTax / 500) * 500 : 0;
         const grandTotalNum = baseAfterDiscount + taxNum;
@@ -509,6 +547,7 @@ function initPosEvents() {
 
         state.cart.forEach((cartItem) => {
           const prod = state.productsDB.find((p) => String(p.id) === String(cartItem.id));
+          const effectivePrice = Number(cartItem.price ?? cartItem.sellPrice) || 0;
           let itemCostData = { 
             totalCost: (Number(cartItem.costPrice) || 0) * cartItem.qty, 
             avgCostPrice: Number(cartItem.costPrice) || 0 
@@ -525,10 +564,10 @@ function initPosEvents() {
             barcode: cartItem.barcode || "",
             cat: cartItem.cat || "",
             qty: cartItem.qty,
-            price: cartItem.price,
+            price: effectivePrice,
             costPrice: itemCostData.avgCostPrice,
             totalCost: itemCostData.totalCost,
-            subtotal: cartItem.price * cartItem.qty
+            subtotal: effectivePrice * cartItem.qty
           });
         });
 
@@ -587,7 +626,7 @@ function initPosEvents() {
         if (!Array.isArray(state.financeDB.logs)) state.financeDB.logs = [];
 
         if (paymentMethod === "Tunai") {
-          state.financeDB.cashBalance = (state.financeDB.cashBalance || 0) + grandTotalNum;
+          state.financeDB.cashBalance = (Number(state.financeDB.cashBalance) || 0) + grandTotalNum;
           state.financeDB.logs.unshift({
             id: `FIN-${Date.now()}`,
             time: fullDateTimeStr,
@@ -599,7 +638,7 @@ function initPosEvents() {
           persistFinance();
           renderFinanceDashboard();
         } else if (paymentMethod === "Transfer / QRIS") {
-          state.financeDB.digitalBalance = (state.financeDB.digitalBalance || 0) + grandTotalNum;
+          state.financeDB.digitalBalance = (Number(state.financeDB.digitalBalance) || 0) + grandTotalNum;
           state.financeDB.logs.unshift({
             id: `FIN-${Date.now()}`,
             time: fullDateTimeStr,
@@ -630,7 +669,7 @@ function initPosEvents() {
         if (payFormView) payFormView.classList.add("hidden");
         if (paySuccessView) paySuccessView.classList.remove("hidden");
 
-        if (state.printerConfig.autoPrint) {
+        if (state.printerConfig?.autoPrint) {
           setTimeout(() => printThermalReceipt(newTrx), 300);
         }
 
@@ -835,7 +874,7 @@ function renderPosMemberPicker(q = "") {
 
   const filtered = state.membersDB.filter((m) => {
     const p = m.phone || m.wa || "";
-    return m.name.toLowerCase().includes(q) || p.includes(q) || (m.id && String(m.id).toLowerCase().includes(q));
+    return (m.name && m.name.toLowerCase().includes(q)) || p.includes(q) || (m.id && String(m.id).toLowerCase().includes(q));
   });
 
   if (filtered.length === 0) {
