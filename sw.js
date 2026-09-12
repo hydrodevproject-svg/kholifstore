@@ -1,5 +1,5 @@
 // sw.js - Service Worker Kholif Store POS
-const CACHE_NAME = "kholif-pos-cache-v2026-v14";
+const CACHE_NAME = "kholif-pos-cache-v2026-v15";
 
 const APP_SHELL_ASSETS = [
   "./",
@@ -37,6 +37,7 @@ const APP_SHELL_ASSETS = [
   "./views/modals.html"
 ];
 
+// 1. Pemasangan Cache Awal
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
@@ -51,6 +52,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// 2. Pembersihan Cache Versi Lama
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -65,10 +67,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// 3. Strategi Network First dengan Fallback Cache
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
+  // Abaikan permintaan keluar ke Firestore, Firebase, dan Google APIs
   if (
     req.method !== "GET" ||
     url.hostname.includes("firestore.googleapis.com") ||
