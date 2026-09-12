@@ -3,12 +3,13 @@ import {
   db, 
   doc, 
   setDoc, 
-  deleteDoc,
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot 
+  deleteDoc, 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot,
+  writeBatch
 } from "../firebase-config.js";
 import { getLocalItem, setLocalItem, initLocalDB } from "./db-local.js";
 
@@ -121,10 +122,6 @@ export async function loadInitialStateFromDB() {
   if (localAccounts && Array.isArray(localAccounts)) {
     state.accountsDB = localAccounts;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_accounts");
-    if (legacy) {
-      try { state.accountsDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_accounts", state.accountsDB);
   }
 
@@ -132,10 +129,6 @@ export async function loadInitialStateFromDB() {
   if (localMembers && Array.isArray(localMembers)) {
     state.membersDB = localMembers;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_members");
-    if (legacy) {
-      try { state.membersDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_members", state.membersDB);
   }
 
@@ -143,10 +136,6 @@ export async function loadInitialStateFromDB() {
   if (localCategories && Array.isArray(localCategories)) {
     state.categoriesDB = localCategories;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_categories");
-    if (legacy) {
-      try { state.categoriesDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_categories", state.categoriesDB);
   }
 
@@ -154,10 +143,6 @@ export async function loadInitialStateFromDB() {
   if (localProducts && Array.isArray(localProducts)) {
     state.productsDB = localProducts;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_products");
-    if (legacy) {
-      try { state.productsDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_products", state.productsDB);
   }
 
@@ -165,10 +150,6 @@ export async function loadInitialStateFromDB() {
   if (localPurchases && Array.isArray(localPurchases)) {
     state.purchasesDB = localPurchases;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_purchases");
-    if (legacy) {
-      try { state.purchasesDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_purchases", state.purchasesDB);
   }
 
@@ -176,10 +157,6 @@ export async function loadInitialStateFromDB() {
   if (localDebts && Array.isArray(localDebts)) {
     state.supplierDebtsDB = localDebts;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_supplier_debts");
-    if (legacy) {
-      try { state.supplierDebtsDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_supplier_debts", state.supplierDebtsDB);
   }
 
@@ -187,42 +164,25 @@ export async function loadInitialStateFromDB() {
   if (localOpnames && Array.isArray(localOpnames)) {
     state.stockOpnamesDB = localOpnames;
   } else {
-    const legacy = localStorage.getItem("kholif_pos_opnames");
-    if (legacy) {
-      try { state.stockOpnamesDB = JSON.parse(legacy); } catch (e) {}
-    }
     await setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
   }
 
   const localSales = await getLocalItem("kholif_pos_sales");
   if (localSales && Array.isArray(localSales)) {
     state.salesTransactions = localSales.sort((a, b) => {
-      return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
+      return (b.timestamp || 0) - (a.timestamp || 0) || String(b.id || "").localeCompare(String(a.id || ""));
     });
   } else {
-    const legacy = localStorage.getItem("kholif_pos_sales");
-    if (legacy) {
-      try {
-        state.salesTransactions = JSON.parse(legacy).sort((a, b) => {
-          return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
-        });
-      } catch (e) {}
-    }
     await setLocalItem("kholif_pos_sales", state.salesTransactions);
   }
 
   const localFinance = await getLocalItem("kholif_pos_finance");
   if (localFinance && typeof localFinance === "object") {
-    state.financeDB = localFinance;
-    if (state.financeDB.digitalBalance === undefined) {
-      state.financeDB.digitalBalance = 0;
-    }
-    if (state.financeDB.cashBalance === undefined) {
-      state.financeDB.cashBalance = 0;
-    }
-    if (!Array.isArray(state.financeDB.logs)) {
-      state.financeDB.logs = [];
-    }
+    state.financeDB = {
+      cashBalance: Number(localFinance.cashBalance) || 0,
+      digitalBalance: Number(localFinance.digitalBalance) || 0,
+      logs: Array.isArray(localFinance.logs) ? localFinance.logs : []
+    };
   } else {
     state.financeDB = { cashBalance: 500000, digitalBalance: 0, logs: [] };
     await setLocalItem("kholif_pos_finance", state.financeDB);
@@ -232,24 +192,20 @@ export async function loadInitialStateFromDB() {
   if (localPrinter && typeof localPrinter === "object") {
     state.printerConfig = localPrinter;
   } else {
-    const legacyPrinter = localStorage.getItem("kholif_pos_printer_config");
-    if (legacyPrinter) {
-      try {
-        state.printerConfig = JSON.parse(legacyPrinter);
-      } catch (e) {}
-    }
     await setLocalItem("kholif_pos_printer_config", state.printerConfig);
   }
 
   const localFeatures = await getLocalItem("kholif_features_manifest");
-  if (localFeatures) state.featuresConfig = localFeatures;
+  if (localFeatures && typeof localFeatures === "object") {
+    state.featuresConfig = localFeatures;
+  }
 }
 
 /* =========================================================
    PENGHEMAT KUOTA TULIS: WRITE-DEBOUNCE SYNC
    ========================================================= */
 const syncTimers = {};
-function queueFirestoreSync(key, syncFn, delay = 500) {
+function queueFirestoreSync(key, syncFn, delay = 400) {
   clearTimeout(syncTimers[key]);
   syncTimers[key] = setTimeout(() => {
     syncFn();
@@ -278,38 +234,39 @@ export function persistCategories() {
   });
 }
 
-// Sinkronisasi per-produk: Mencegah penimpaan saat kasir & karyawan bekerja bersamaan
+// Menyimpan hanya barang yang mengalami perubahan untuk mencegah pemborosan kuota tulis Firestore
 export function persistProducts(specificProductOrList = null) {
   setLocalItem("kholif_pos_products", state.productsDB);
 
   if (specificProductOrList) {
     const items = Array.isArray(specificProductOrList) ? specificProductOrList : [specificProductOrList];
+    const batch = writeBatch(db);
+    let count = 0;
+
     items.forEach((p) => {
-      if (p && p.id) {
-        try {
-          setDoc(doc(db, "products_catalog", String(p.id)), p, { merge: true });
-        } catch (e) {}
+      if (p && p.id !== undefined && p.id !== null) {
+        const ref = doc(db, "products_catalog", String(p.id));
+        batch.set(ref, p, { merge: true });
+        count++;
       }
     });
-    state.lastSyncTimestamp = Date.now();
-  } else {
-    queueFirestoreSync("products_catalog", () => {
-      state.productsDB.forEach((p) => {
-        if (p && p.id) {
-          try {
-            setDoc(doc(db, "products_catalog", String(p.id)), p, { merge: true });
-          } catch (e) {}
-        }
+
+    if (count > 0) {
+      batch.commit().catch((err) => {
+        console.warn("Gagal menyimpan batch produk ke Firestore:", err);
       });
-    }, 400);
+      state.lastSyncTimestamp = Date.now();
+    }
   }
 }
 
 export function deleteProductDoc(productId) {
-  if (!productId) return;
+  if (productId === undefined || productId === null) return;
   try {
     deleteDoc(doc(db, "products_catalog", String(productId)));
-  } catch (e) {}
+  } catch (e) {
+    console.warn("Gagal menghapus dokumen produk di Firestore:", e);
+  }
 }
 
 export function persistPurchases() {
@@ -326,7 +283,6 @@ export function persistSupplierDebts() {
   });
 }
 
-// Sinkronisasi per-opname: Aman dari tabrakan input beberapa karyawan
 export function persistOpnames(specificOpname = null) {
   setLocalItem("kholif_pos_opnames", state.stockOpnamesDB);
 
@@ -334,51 +290,31 @@ export function persistOpnames(specificOpname = null) {
     try {
       setDoc(doc(db, "inventory_opnames", String(specificOpname.id)), specificOpname, { merge: true });
       state.lastSyncTimestamp = Date.now();
-    } catch (e) {}
-  } else {
-    queueFirestoreSync("inventory_opnames", () => {
-      state.stockOpnamesDB.slice(0, 50).forEach((opn) => {
-        if (opn && opn.id) {
-          try {
-            setDoc(doc(db, "inventory_opnames", String(opn.id)), opn, { merge: true });
-          } catch (e) {}
-        }
-      });
-    }, 400);
+    } catch (e) {
+      console.warn("Gagal sinkron opname ke Firestore:", e);
+    }
   }
 }
 
-// Sinkronisasi per-transaksi penjualan
 export function persistSales(specificTrx = null) {
   setLocalItem("kholif_pos_sales", state.salesTransactions);
 
   if (specificTrx && specificTrx.id) {
     try {
-      setDoc(doc(db, "sales_transactions", specificTrx.id), specificTrx, { merge: true });
+      setDoc(doc(db, "sales_transactions", String(specificTrx.id)), specificTrx, { merge: true });
       state.lastSyncTimestamp = Date.now();
     } catch (e) {
       console.warn("Gagal sinkron transaksi ke Firestore:", e);
     }
-  } else {
-    queueFirestoreSync("sales_batch", () => {
-      try {
-        const poolToSync = state.salesTransactions.slice(0, 50);
-        poolToSync.forEach((trx) => {
-          if (trx && trx.id) {
-            setDoc(doc(db, "sales_transactions", trx.id), trx, { merge: true });
-          }
-        });
-      } catch (e) {}
-    }, 400);
   }
 }
 
 export function deleteSaleDoc(trxId) {
   if (!trxId) return;
   try {
-    deleteDoc(doc(db, "sales_transactions", trxId));
+    deleteDoc(doc(db, "sales_transactions", String(trxId)));
   } catch (e) {
-    console.warn("Gagal hapus transaksi di Firestore:", e);
+    console.warn("Gagal menghapus transaksi di Firestore:", e);
   }
 }
 
@@ -387,7 +323,9 @@ export function persistFinance() {
   queueFirestoreSync("finance", () => {
     try {
       setDoc(doc(db, "system_data", "finance"), state.financeDB, { merge: true });
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Gagal sinkron data keuangan:", e);
+    }
   });
 }
 
@@ -400,11 +338,10 @@ export function persistFeatures() {
 
 export function persistPrinterConfig() {
   setLocalItem("kholif_pos_printer_config", state.printerConfig);
-  localStorage.setItem("kholif_pos_printer_config", JSON.stringify(state.printerConfig));
 }
 
 /* =========================================================
-   SINKRONISASI REALTIME FIREBASE (MULTI-DEVICE READY)
+   SINKRONISASI REALTIME FIREBASE
    ========================================================= */
 export function initFirebaseSync(callbacks = {}) {
   const markSync = () => {
@@ -412,17 +349,16 @@ export function initFirebaseSync(callbacks = {}) {
   };
 
   const handleSyncError = (collectionName, err) => {
-    console.warn(`Sinkronisasi ${collectionName} dialihkan ke database lokal (offline):`, err?.message || err);
+    console.warn(`Sinkronisasi ${collectionName} dialihkan ke database lokal:`, err?.message || err);
   };
 
-  // 1. Koleksi Produk: Setiap perubahan barang dari HP manapun di-merge presisi
+  // 1. Koleksi Produk
   const productsQuery = query(collection(db, "products_catalog"));
   onSnapshot(
     productsQuery,
     async (snapshot) => {
-      // Jika koleksi cloud belum ada (inisialisasi awal), migrasikan data lokal sekali
       if (snapshot.empty && state.productsDB.length > 0) {
-        persistProducts();
+        persistProducts(state.productsDB);
         return;
       }
 
@@ -430,9 +366,10 @@ export function initFirebaseSync(callbacks = {}) {
 
       snapshot.docChanges().forEach((change) => {
         const data = change.doc.data();
+        const docId = String(change.doc.id);
         if (change.type === "removed") {
-          prodMap.delete(change.doc.id);
-        } else if (data && data.id) {
+          prodMap.delete(docId);
+        } else if (data && data.id !== undefined) {
           prodMap.set(String(data.id), data);
         }
       });
@@ -459,7 +396,7 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("members", err)
   );
 
-  // 3. Transaksi Penjualan: Koleksi mandiri tanpa batas potong 150
+  // 3. Transaksi Penjualan
   const salesQuery = query(
     collection(db, "sales_transactions"),
     orderBy("timestamp", "desc"),
@@ -469,19 +406,20 @@ export function initFirebaseSync(callbacks = {}) {
   onSnapshot(
     salesQuery,
     async (snapshot) => {
-      const salesMap = new Map(state.salesTransactions.map((trx) => [trx.id, trx]));
+      const salesMap = new Map(state.salesTransactions.map((trx) => [String(trx.id), trx]));
 
       snapshot.docChanges().forEach((change) => {
         const data = change.doc.data();
+        const docId = String(change.doc.id);
         if (change.type === "removed") {
-          salesMap.delete(change.doc.id);
+          salesMap.delete(docId);
         } else if (data && data.id) {
-          salesMap.set(data.id, data);
+          salesMap.set(String(data.id), data);
         }
       });
 
       state.salesTransactions = Array.from(salesMap.values()).sort((a, b) => {
-        return (b.timestamp || 0) - (a.timestamp || 0) || (b.id || "").localeCompare(a.id || "");
+        return (b.timestamp || 0) - (a.timestamp || 0) || String(b.id || "").localeCompare(String(a.id || ""));
       });
 
       await setLocalItem("kholif_pos_sales", state.salesTransactions);
@@ -547,7 +485,7 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("supplier_debts", err)
   );
 
-  // 8. Log Stok Opname: Koleksi mandiri multi-user
+  // 8. Log Stok Opname
   const opnamesQuery = query(
     collection(db, "inventory_opnames"),
     orderBy("id", "desc"),
@@ -557,17 +495,13 @@ export function initFirebaseSync(callbacks = {}) {
   onSnapshot(
     opnamesQuery,
     async (snapshot) => {
-      if (snapshot.empty && state.stockOpnamesDB.length > 0) {
-        persistOpnames();
-        return;
-      }
-
       const opnMap = new Map(state.stockOpnamesDB.map((o) => [String(o.id), o]));
 
       snapshot.docChanges().forEach((change) => {
         const data = change.doc.data();
+        const docId = String(change.doc.id);
         if (change.type === "removed") {
-          opnMap.delete(change.doc.id);
+          opnMap.delete(docId);
         } else if (data && data.id) {
           opnMap.set(String(data.id), data);
         }
@@ -595,21 +529,17 @@ export function initFirebaseSync(callbacks = {}) {
     (err) => handleSyncError("features_manifest", err)
   );
 
-  // 10. Data Kas Keuangan Toko (Owner & Kasir Realtime)
+  // 10. Data Kas Keuangan Toko
   onSnapshot(
     doc(db, "system_data", "finance"),
     async (snap) => {
       if (snap.exists()) {
-        state.financeDB = snap.data();
-        if (state.financeDB.digitalBalance === undefined) {
-          state.financeDB.digitalBalance = 0;
-        }
-        if (state.financeDB.cashBalance === undefined) {
-          state.financeDB.cashBalance = 0;
-        }
-        if (!Array.isArray(state.financeDB.logs)) {
-          state.financeDB.logs = [];
-        }
+        const d = snap.data();
+        state.financeDB = {
+          cashBalance: Number(d.cashBalance) || 0,
+          digitalBalance: Number(d.digitalBalance) || 0,
+          logs: Array.isArray(d.logs) ? d.logs : []
+        };
         await setLocalItem("kholif_pos_finance", state.financeDB);
         markSync();
         if (callbacks.onFinanceChange) callbacks.onFinanceChange();
